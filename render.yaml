@@ -17,3 +17,7 @@ services:
         generateValue: true
       - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_ASR_LANGUAGE
+        value: ur
+      - key: ELEVENLABS_API_KEY
+        sync: false
