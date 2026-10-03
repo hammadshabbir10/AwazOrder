@@ -521,13 +521,19 @@ function urduBrowserVoice() {
   return (window.speechSynthesis?.getVoices() || []).find((v) => v.lang.toLowerCase().startsWith("ur"));
 }
 
-async function playOrderVoice(orderId, button, audioEl) {
+async function playOrderVoice(order, button, audioEl) {
   if (state.status?.tts) {
     const original = button.innerHTML;
     button.disabled = true;
     button.innerHTML = '<span class="spinner"></span> Generating Urdu voice…';
     try {
-      const res = await fetch(`/api/orders/${orderId}/speech`, { credentials: "same-origin" });
+      // The signed token carries the exact text, so any server instance can voice it.
+      const res = await fetch("/api/speech", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: order.speech_token }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || "The voice service is unavailable right now.");
@@ -555,7 +561,7 @@ async function playOrderVoice(orderId, button, audioEl) {
   toast("Urdu voice isn't set up yet: add ELEVENLABS_API_KEY to the server's .env.", "error");
 }
 
-$("listen").onclick = () => state.lastOrder && playOrderVoice(state.lastOrder.id, $("listen"), $("tts-audio"));
+$("listen").onclick = () => state.lastOrder && playOrderVoice(state.lastOrder, $("listen"), $("tts-audio"));
 
 $("copy-reply").onclick = async () => {
   try { await navigator.clipboard.writeText($("reply").textContent); toast("Reply copied to clipboard", "success"); }

@@ -381,12 +381,64 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
             conn.execute("UPDATE notes SET order_id = ? WHERE id = ? AND user_id = ?", (order_id, body.note_id, user["id"]))
 
     return {"id": order_id, "total": total, "balance": balance, "reply": reply,
-            "shop": shop["name"], "phone": shop["phone"], "tts": ai.tts_enabled()}
+            "shop": shop["name"], "phone": shop["phone"], "tts": ai.tts_enabled(),
+            "speech_token": sign_text(spoken)}
+
+
+# ---------------------------------------------------------------- Urdu voice (ElevenLabs)
+#
+# A confirmed order returns a signed "speech token" carrying the exact text to
+# read aloud. Playing it needs no database lookup, so it works on any server
+# instance, including serverless hosts where the instance that saved the order
+# is not the one that answers the next request.
+
+MAX_SPOKEN_CHARS = 2000
+
+
+def sign_text(text: str) -> str:
+    body = base64.urlsafe_b64encode(text.encode()).decode()
+    return f"{body}.{_sign('speech:' + body)}"
+
+
+def verify_text(token: str) -> str | None:
+    try:
+        body, sig = token.rsplit(".", 1)
+        if not hmac.compare_digest(sig, _sign("speech:" + body)):
+            return None
+        return base64.urlsafe_b64decode(body.encode()).decode()
+    except Exception:
+        return None
+
+
+def _speech_file(spoken: str) -> FileResponse:
+    if not ai.tts_enabled():
+        raise HTTPException(501, "Urdu voice needs an ElevenLabs API key (ELEVENLABS_API_KEY).")
+    digest = hashlib.sha256(spoken.encode()).hexdigest()[:24]
+    cached = AUDIO_DIR / f"reply-{digest}.mp3"
+    if not cached.exists():
+        try:
+            cached.write_bytes(ai.speak(spoken))
+        except ai.AllProvidersFailed as exc:
+            raise HTTPException(503, f"The voice service is unavailable right now ({exc}).")
+    return FileResponse(cached, media_type="audio/mpeg")
+
+
+class SpeechIn(BaseModel):
+    token: str = Field(max_length=12000)
+
+
+@app.post("/api/speech")
+def speech(body: SpeechIn, user: dict = Depends(current_user)):
+    """Read a confirmation aloud from its signed token (no lookup needed)."""
+    spoken = verify_text(body.token)
+    if not spoken or len(spoken) > MAX_SPOKEN_CHARS:
+        raise HTTPException(400, "This voice reply has expired. Confirm the order again to hear it.")
+    return _speech_file(spoken)
 
 
 @app.get("/api/orders/{order_id}/speech")
 def order_speech(order_id: int, user: dict = Depends(current_user)):
-    """The Urdu confirmation read aloud by ElevenLabs. Cached per order."""
+    """The Urdu confirmation of a stored order, rebuilt from the order itself."""
     if not ai.tts_enabled():
         raise HTTPException(501, "Urdu voice needs an ElevenLabs API key (ELEVENLABS_API_KEY).")
     with connect() as conn:
@@ -405,14 +457,7 @@ def order_speech(order_id: int, user: dict = Depends(current_user)):
     # real items and amounts; the audio is cached per exact text.
     spoken = pipeline.spoken_reply(order_id, order["shop"], json.loads(order["lines_json"]),
                                    order["total"], order["payment"], balance)
-    digest = hashlib.sha256(spoken.encode()).hexdigest()[:16]
-    cached = AUDIO_DIR / f"reply-{order_id}-{digest}.mp3"
-    if not cached.exists():
-        try:
-            cached.write_bytes(ai.speak(spoken))
-        except ai.AllProvidersFailed as exc:
-            raise HTTPException(503, f"The voice service is unavailable right now ({exc}).")
-    return FileResponse(cached, media_type="audio/mpeg")
+    return _speech_file(spoken)
 
 
 @app.get("/api/orders")
