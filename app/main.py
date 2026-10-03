@@ -113,6 +113,12 @@ def logout(response: Response):
     return {"ok": True}
 
 
+@app.get("/api/session")
+def session(request: Request):
+    """Signed-in user or null, always 200 (the landing page's quiet check)."""
+    return {"user": user_from_request(request)}
+
+
 @app.get("/api/me")
 def me(user: dict = Depends(current_user)):
     return user

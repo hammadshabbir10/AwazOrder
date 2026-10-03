@@ -11,8 +11,8 @@
 // Nav: border once scrolled; "Open app" instead of "Sign in" for a signed-in visitor.
 const nav = document.getElementById("site-nav");
 addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 8), { passive: true });
-fetch("/api/me", { credentials: "same-origin" }).then((res) => {
-  if (!res.ok) return;
+fetch("/api/session", { credentials: "same-origin" }).then((res) => res.json()).then((s) => {
+  if (!s.user) return;
   const cta = document.getElementById("nav-cta");
   cta.textContent = "Open app";
   cta.href = "/app";
