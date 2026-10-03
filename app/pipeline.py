@@ -1,5 +1,7 @@
 """Order pipeline: transcript -> structured, priced, validated order draft."""
 
+import time
+
 from app import ai
 from app.db import get_products, get_shops
 from app.parser import match_product, offline_parse
@@ -75,6 +77,7 @@ def parse_text(transcript: str, use_ai: bool = True) -> dict:
     products = get_products()
     mode, provider, error = "offline", None, None
     raw = None
+    started = time.perf_counter()
     if use_ai:
         try:
             raw, provider = ai.extract_order(transcript, products)
@@ -84,7 +87,9 @@ def parse_text(transcript: str, use_ai: bool = True) -> dict:
     if raw is None:
         raw = offline_parse(transcript, products)
     draft = _normalise(raw, products, transcript)
-    draft.update({"mode": mode, "provider": provider, "ai_error": error})
+    extract_ms = round((time.perf_counter() - started) * 1000)
+    draft.update({"mode": mode, "provider": provider, "ai_error": error,
+                  "timing": {"extract_ms": extract_ms, "total_ms": extract_ms}})
     return draft
 
 
@@ -98,12 +103,16 @@ WHISPER_SILENCE = {"thank you", "thanks for watching", "شکریہ", "you", "bye
 
 def parse_audio(audio: bytes, filename: str, content_type: str) -> dict:
     products = get_products()
+    started = time.perf_counter()
     transcript, asr_provider = ai.transcribe(audio, filename, content_type, vocabulary_hint(products))
+    asr_ms = round((time.perf_counter() - started) * 1000)
     cleaned = transcript.strip(" .۔!?،,").lower()
     if len(cleaned) < 4 or cleaned in WHISPER_SILENCE:
         raise NoSpeech()
     draft = parse_text(transcript)
     draft["asr_provider"] = asr_provider
+    extract_ms = draft["timing"]["extract_ms"]
+    draft["timing"] = {"asr_ms": asr_ms, "extract_ms": extract_ms, "total_ms": asr_ms + extract_ms}
     return draft
 
 

@@ -11,6 +11,7 @@ import secrets
 import tempfile
 import time
 from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
@@ -327,10 +328,26 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
                       "price": p["price"], "line_total": round(p["price"] * l.quantity)})
     total = sum(l["line_total"] for l in lines)
 
+    # Analytics: how long the AI took and how sure it was, taken from the draft
+    # this order was confirmed from (none for samples or hand-built orders).
+    processing_ms = review_lines = ai_mode = None
+    if body.source == "sample":
+        ai_mode = "cached"
     with connect() as conn:
+        if body.note_id:
+            note = conn.execute("SELECT draft_json FROM notes WHERE id = ? AND user_id = ?",
+                                (body.note_id, user["id"])).fetchone()
+            if note:
+                draft = json.loads(note["draft_json"])
+                processing_ms = (draft.get("timing") or {}).get("total_ms")
+                review_lines = sum(1 for l in draft.get("lines", []) if l.get("needs_review"))
+                ai_mode = draft.get("mode")
         cur = conn.execute(
-            "INSERT INTO orders (shop_id, created_at, transcript, payment, total, source, lines_json, note_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (shop["id"], now(), body.transcript, body.payment, total, body.source, json.dumps(lines), body.note_id),
+            """INSERT INTO orders (shop_id, created_at, transcript, payment, total, source, lines_json, note_id,
+                                   processing_ms, review_lines, ai_mode)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (shop["id"], now(), body.transcript, body.payment, total, body.source, json.dumps(lines), body.note_id,
+             processing_ms, review_lines, ai_mode),
         )
         order_id = cur.lastrowid
         if body.payment == "credit":
@@ -416,13 +433,109 @@ def record_payment(shop_id: int, body: PaymentIn, user: dict = Depends(current_u
 
 @app.get("/api/dashboard")
 def dashboard(user: dict = Depends(current_user)):
+    # "Today" is the Pakistan calendar day, matching the Insights charts.
+    pkt_midnight = datetime.combine((datetime.now(timezone.utc) + PKT).date(), datetime.min.time(), timezone.utc) - PKT
     with connect() as conn:
-        today = now()[:10]
-        orders_today = conn.execute("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM orders WHERE substr(created_at, 1, 10) = ?", (today,)).fetchone()
+        orders_today = conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(total), 0) FROM orders WHERE created_at >= ?",
+            (pkt_midnight.isoformat(timespec="seconds"),),
+        ).fetchone()
         outstanding = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM ledger").fetchone()[0]
         notes = conn.execute("SELECT COUNT(*) FROM notes WHERE user_id = ?", (user["id"],)).fetchone()[0]
     return {"orders_today": orders_today[0], "value_today": orders_today[1],
             "outstanding": outstanding, "voice_notes": notes}
+
+
+# ---------------------------------------------------------------- analytics
+
+PKT = timedelta(hours=5)
+
+
+def _pkt(iso: str) -> datetime:
+    return datetime.fromisoformat(iso) + PKT
+
+
+def _percentile(sorted_values: list[float], q: float) -> float | None:
+    if not sorted_values:
+        return None
+    i = min(len(sorted_values) - 1, max(0, round(q * (len(sorted_values) - 1))))
+    return sorted_values[i]
+
+
+@app.get("/api/analytics")
+def analytics(days: int = 30, user: dict = Depends(current_user)):
+    days = max(1, min(days, 90))
+    today = (datetime.now(timezone.utc) + PKT).date()
+    start = today - timedelta(days=days - 1)
+    prev_start = start - timedelta(days=days)
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT o.*, s.name AS shop FROM orders o JOIN shops s ON s.id = o.shop_id ORDER BY o.created_at"
+        )]
+        shops_now = get_shops()
+    for r in rows:
+        r["day"] = _pkt(r["created_at"]).date()
+        r["hour"] = _pkt(r["created_at"]).hour
+    current = [r for r in rows if r["day"] >= start]
+    previous = [r for r in rows if prev_start <= r["day"] < start]
+    earliest = min((r["day"] for r in rows), default=today)
+
+    daily = {start + timedelta(days=i): {"orders": 0, "value": 0, "voice": 0, "text": 0, "sample": 0}
+             for i in range(days)}
+    products: dict[str, dict] = {}
+    hours = {h: 0 for h in range(8, 22)}
+    for r in current:
+        d = daily[r["day"]]
+        d["orders"] += 1
+        d["value"] += r["total"]
+        d[r["source"] if r["source"] in ("voice", "text", "sample") else "text"] += 1
+        if r["hour"] in hours:
+            hours[r["hour"]] += 1
+        for l in json.loads(r["lines_json"]):
+            p = products.setdefault(l["name"], {"name": l["name"], "value": 0, "qty": 0, "unit": l["unit"]})
+            p["value"] += l["line_total"]
+            p["qty"] += l["quantity"]
+
+    timed = sorted(r["processing_ms"] for r in current if r["processing_ms"] and r["source"] == "voice")
+    timed_text = sorted(r["processing_ms"] for r in current if r["processing_ms"] and r["source"] == "text")
+    edges = [0, 1000, 2000, 3000, 4000, 5000]
+    bins = []
+    for i, lo in enumerate(edges):
+        hi = edges[i + 1] if i + 1 < len(edges) else None
+        label = f"{lo // 1000}–{hi // 1000} s" if hi else f"{lo // 1000} s+"
+        bins.append({"label": label, "count": sum(1 for v in timed if v >= lo and (hi is None or v < hi))})
+
+    revenue = sum(r["total"] for r in current)
+    ai_rows = [r for r in current if r["source"] in ("voice", "text") and r["review_lines"] is not None]
+    lines_reviewed = sum(r["review_lines"] for r in ai_rows)
+    lines_total = sum(len(json.loads(r["lines_json"])) for r in ai_rows)
+    return {
+        "days": days,
+        "simulated": any(r["seeded"] for r in current),
+        "kpis": {
+            "revenue": revenue,
+            "orders": len(current),
+            "aov": round(revenue / len(current)) if current else 0,
+            "voice_share": round(100 * sum(1 for r in current if r["source"] == "voice") / len(current)) if current else 0,
+            "credit_share": round(100 * sum(1 for r in current if r["payment"] == "credit") / len(current)) if current else 0,
+            "median_ms": _percentile(timed, 0.5),
+            "p90_ms": _percentile(timed, 0.9),
+            "median_text_ms": _percentile(timed_text, 0.5),
+            "review_rate": round(100 * lines_reviewed / lines_total, 1) if lines_total else 0,
+            "fallback_rate": round(100 * sum(1 for r in ai_rows if r["ai_mode"] == "offline") / len(ai_rows), 1) if ai_rows else 0,
+        },
+        "previous": {
+            "complete": earliest <= prev_start,
+            "revenue": sum(r["total"] for r in previous),
+            "orders": len(previous),
+        },
+        "daily": [{"date": d.isoformat(), **v} for d, v in daily.items()],
+        "top_products": sorted(products.values(), key=lambda p: p["value"], reverse=True)[:8],
+        "processing": {"bins": bins, "n": len(timed)},
+        "hours": [{"hour": h, "orders": c} for h, c in hours.items()],
+        "khata": sorted(({"shop": s["name"], "balance": s["balance"]} for s in shops_now),
+                        key=lambda s: s["balance"], reverse=True),
+    }
 
 
 # ---------------------------------------------------------------- website pages

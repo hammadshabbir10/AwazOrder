@@ -92,8 +92,8 @@ async function refreshStats() {
 document.querySelectorAll(".app-tabs button").forEach((tab) => {
   tab.onclick = () => {
     document.querySelectorAll(".app-tabs button").forEach((t) => t.classList.toggle("active", t === tab));
-    ["new", "orders", "khata", "catalogue"].forEach((name) => show(`tab-${name}`, name === tab.dataset.tab));
-    ({ orders: loadOrders, khata: () => loadShops(), catalogue: renderCatalogue }[tab.dataset.tab] || (() => {}))();
+    ["new", "insights", "orders", "khata", "catalogue"].forEach((name) => show(`tab-${name}`, name === tab.dataset.tab));
+    ({ insights: loadInsights, orders: loadOrders, khata: () => loadShops(), catalogue: renderCatalogue }[tab.dataset.tab] || (() => {}))();
   };
 });
 
@@ -384,6 +384,17 @@ function renderDraft(d, kind, sampleShop) {
     source: kind === "sample" ? "sample" : (d.asr_provider || kind === "audio" || (kind === "note" && d.asr_provider)) ? "voice" : "text",
     lines: (d.lines || []).map((l) => ({ ...l })),
   };
+  const t = d.timing;
+  const tb = $("timing-badge");
+  if (t && t.total_ms && !d.reopened) {
+    tb.textContent = `Processed in ${(t.total_ms / 1000).toFixed(1)} s`;
+    tb.title = t.asr_ms != null
+      ? `Speech-to-text ${(t.asr_ms / 1000).toFixed(1)} s · extraction ${(t.extract_ms / 1000).toFixed(1)} s`
+      : `Extraction ${(t.extract_ms / 1000).toFixed(1)} s`;
+    show("timing-badge", true);
+  } else {
+    show("timing-badge", false);
+  }
   const [label, cls] = modeBadge(d);
   $("mode-badge").textContent = label;
   $("mode-badge").className = cls;
@@ -688,4 +699,138 @@ $("cat-search").addEventListener("input", renderCatalogue);
 /* ================================================================ go */
 
 if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
+/* ================================================================ insights */
+
+const insights = { days: 30, data: null, view: {} };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const seriesColor = (n) => getComputedStyle(document.documentElement).getPropertyValue(`--series-${n}`).trim();
+
+function dayLabel(iso, long) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return long ? `${DAYS[date.getUTCDay()]}, ${d} ${MONTHS[m - 1]}` : `${d} ${MONTHS[m - 1]}`;
+}
+
+/** Pakistani compact amounts: 43.3K, 4.36 lakh, 1.34 crore. */
+function compactRs(n, withRs = true) {
+  const a = Math.abs(n);
+  const s = a >= 1e7 ? `${+(n / 1e7).toFixed(2)} Cr` : a >= 1e5 ? `${+(n / 1e5).toFixed(2)} L` : a >= 1e3 ? `${+(n / 1e3).toFixed(1)}K` : `${Math.round(n)}`;
+  return withRs ? `Rs ${s}` : s;
+}
+const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? "am" : "pm"}`;
+const RS = { axis: (v) => compactRs(v, false), short: (v) => compactRs(v), full: (v) => pkr(v), unit: "order value" };
+const COUNT = (noun) => ({ axis: (v) => `${v}`, short: (v) => `${v}`, full: (v) => `${v} ${noun}${v === 1 ? "" : "s"}`, unit: "" });
+
+document.querySelectorAll("#range button").forEach((b) => (b.onclick = () => {
+  document.querySelectorAll("#range button").forEach((x) => x.classList.toggle("active", x === b));
+  insights.days = Number(b.dataset.days);
+  loadInsights();
+}));
+
+document.querySelectorAll(".chart-card .view-toggle").forEach((btn) => (btn.onclick = () => {
+  const key = btn.closest(".chart-card").dataset.chart;
+  insights.view[key] = insights.view[key] === "table" ? "chart" : "table";
+  btn.textContent = insights.view[key] === "table" ? "Chart" : "Table";
+  renderCharts();
+}));
+
+async function loadInsights() {
+  // Refetch keeps the frame: hold the previous render, dimmed, until new data lands.
+  $("chart-grid").classList.add("loading");
+  $("kpis").classList.add("loading");
+  try {
+    insights.data = await api(`/api/analytics?days=${insights.days}`);
+    renderKpis();
+    renderCharts();
+  } catch (e) {
+    toast(e.message, "error");
+  } finally {
+    $("chart-grid").classList.remove("loading");
+    $("kpis").classList.remove("loading");
+  }
+}
+
+function delta(cur, prev, complete) {
+  if (!complete || !prev) return "";
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  const up = pct >= 0;
+  return `<span class="delta ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(pct)}%</span> <span>vs previous ${insights.days} days</span>`;
+}
+
+function renderKpis() {
+  const a = insights.data, k = a.kpis, p = a.previous;
+  show("sim-note", a.simulated);
+  const sec = (ms) => (ms == null ? "—" : `${(ms / 1000).toFixed(1)} s`);
+  const tiles = [
+    ["Order value", compactRs(k.revenue), delta(k.revenue, p.revenue, p.complete) || `${insights.days} days · ${pkr(k.revenue)}`],
+    ["Orders", k.orders.toLocaleString("en-PK"), delta(k.orders, p.orders, p.complete) || `${k.voice_share}% came in as voice notes`],
+    ["Average order", compactRs(k.aov), `${k.credit_share}% on khata (credit)`],
+    ["Voice note → draft", sec(k.median_ms), k.p90_ms ? `median · 90% under ${sec(k.p90_ms)} · typed ${sec(k.median_text_ms)}` : "no voice orders in this period"],
+    ["Lines needing review", `${k.review_rate}%`, `AI unsure, flagged for a human · offline fallback ${k.fallback_rate}%`],
+  ];
+  $("kpis").innerHTML = tiles.map(([label, value, sub]) => `
+    <div class="kpi"><span class="k-label">${esc(label)}</span><span class="k-value">${esc(value)}</span><span class="k-sub">${sub}</span></div>`).join("");
+}
+
+function renderCharts() {
+  const a = insights.data;
+  if (!a || $("tab-insights").classList.contains("hidden")) return;
+  const c1 = seriesColor(1), c2 = seriesColor(2), c3 = seriesColor(3);
+  const channels = [
+    { key: "voice", label: "Voice notes", color: c1 },
+    { key: "text", label: "Typed", color: c2 },
+    { key: "sample", label: "Samples", color: c3 },
+  ];
+  $("channel-legend").innerHTML = channels.map((s) => `<span><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join("");
+  const khata = a.khata.filter((s) => s.balance > 0);
+
+  const charts = {
+    value: {
+      chart: (h) => Charts.area(h, a.daily, { value: (d) => d.value, label: (d, long) => dayLabel(d.date, long), format: RS, color: c1, ariaLabel: `Daily order value over the last ${a.days} days` }),
+      table: () => [["Day", "Orders", "Order value"], a.daily.map((d) => [dayLabel(d.date, true), d.orders, pkr(d.value)])],
+    },
+    channel: {
+      chart: (h) => Charts.columns(h, a.daily, { series: channels, label: (d, long) => dayLabel(d.date, long), format: COUNT("order"), ariaLabel: "Orders per day by channel: voice notes, typed and samples" }),
+      table: () => [["Day", "Voice notes", "Typed", "Samples", "Total"], a.daily.map((d) => [dayLabel(d.date, true), d.voice, d.text, d.sample, d.voice + d.text + d.sample])],
+    },
+    speed: {
+      chart: (h) => a.processing.n
+        ? Charts.columns(h, a.processing.bins, { series: [{ key: "count", label: "voice orders", color: c1 }], label: (d) => d.label, format: COUNT("voice order"), ariaLabel: "Distribution of voice note processing time" })
+        : (h.innerHTML = `<div class="empty">No voice orders in this period yet.</div>`),
+      table: () => [["Processing time", "Voice orders"], a.processing.bins.map((b) => [b.label, b.count])],
+    },
+    products: {
+      chart: (h) => Charts.hbars(h, a.top_products, { value: (p) => p.value, label: (p) => p.name, format: RS, color: c1, ariaLabel: "Top products by order value" }),
+      table: () => [["Product", "Quantity", "Order value"], a.top_products.map((p) => [p.name, `${p.qty} ${p.unit}`, pkr(p.value)])],
+    },
+    khata: {
+      chart: (h) => khata.length
+        ? Charts.hbars(h, khata, { value: (s) => s.balance, label: (s) => s.shop, format: { ...RS, unit: "owed" }, color: c1, ariaLabel: "Outstanding khata balance by shop" })
+        : (h.innerHTML = `<div class="empty">Every shop is fully paid up.</div>`),
+      table: () => [["Shop", "Balance owed"], a.khata.map((s) => [s.shop, pkr(s.balance)])],
+    },
+    hours: {
+      chart: (h) => Charts.columns(h, a.hours, { series: [{ key: "orders", label: "orders", color: c1 }], label: (d) => hourLabel(d.hour), format: COUNT("order"), ariaLabel: "Orders by hour of day", height: 220 }),
+      table: () => [["Hour", "Orders"], a.hours.map((d) => [hourLabel(d.hour), d.orders])],
+    },
+  };
+
+  document.querySelectorAll(".chart-card").forEach((card) => {
+    const key = card.dataset.chart;
+    const host = card.querySelector(".chart-host");
+    if (insights.view[key] === "table") {
+      const [headers, rows] = charts[key].table();
+      Charts.table(host, headers, rows);
+    } else {
+      host.replaceChildren();
+      charts[key].chart(host);
+    }
+  });
+}
+
+// Re-render at the new width (charts draw at real pixel size for crisp text).
+let resizeTimer;
+new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderCharts, 150); }).observe($("chart-grid"));
+
 boot().catch((e) => toast(e.message, "error"));

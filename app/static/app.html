@@ -16,6 +16,7 @@
       <a class="brand" href="/"><span class="logo"></span>Awaz Order</a>
       <nav class="app-tabs" role="tablist" aria-label="Sections">
         <button class="active" data-tab="new" role="tab">New order</button>
+        <button data-tab="insights" role="tab">Insights</button>
         <button data-tab="orders" role="tab">Orders</button>
         <button data-tab="khata" role="tab">Khata</button>
         <button data-tab="catalogue" role="tab">Catalogue</button>
@@ -116,7 +117,7 @@
         <div class="card hidden" id="review">
           <div class="card-head">
             <div><h2>Review the order</h2><p>Check highlighted items, choose the shop, then confirm.</p></div>
-            <span class="pill" id="mode-badge"></span>
+            <div class="badges"><span class="pill plain hidden" id="timing-badge" title="Time from receiving the order to this draft"></span><span class="pill" id="mode-badge"></span></div>
           </div>
           <div class="transcript-box">
             <span class="label">What the AI heard</span>
@@ -185,6 +186,48 @@
       </aside>
     </section>
 
+    <!-- ============================== Insights -->
+    <section id="tab-insights" class="insights hidden">
+      <div class="filter-row">
+        <div class="segmented" role="group" aria-label="Date range" id="range">
+          <button data-days="7">Last 7 days</button>
+          <button data-days="14">Last 14 days</button>
+          <button data-days="30" class="active">Last 30 days</button>
+        </div>
+        <span class="pill warn hidden" id="sim-note" title="The demo database is pre-filled with 45 days of generated orders so the charts have something to show. Orders you create are real.">Includes simulated demo history</span>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="chart-grid" id="chart-grid">
+        <article class="card chart-card wide" data-chart="value">
+          <div class="card-head"><div><h2>Daily order value</h2><p>Confirmed orders, rupees per day (Pakistan time).</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="chart-host"></div>
+        </article>
+        <article class="card chart-card" data-chart="channel">
+          <div class="card-head"><div><h2>Orders by channel</h2><p>How orders reached you each day.</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="legend" id="channel-legend"></div>
+          <div class="chart-host"></div>
+        </article>
+        <article class="card chart-card" data-chart="speed">
+          <div class="card-head"><div><h2>Voice note to order draft</h2><p>Whisper + extraction time for each voice order.</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="chart-host"></div>
+        </article>
+        <article class="card chart-card" data-chart="products">
+          <div class="card-head"><div><h2>Top products</h2><p>By order value in this period.</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="chart-host"></div>
+        </article>
+        <article class="card chart-card" data-chart="khata">
+          <div class="card-head"><div><h2>Outstanding khata</h2><p>Balance owed by each shop today.</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="chart-host"></div>
+        </article>
+        <article class="card chart-card wide" data-chart="hours">
+          <div class="card-head"><div><h2>When orders arrive</h2><p>Orders by hour of day, to plan order-taker shifts around the peaks.</p></div><button class="btn sm view-toggle">Table</button></div>
+          <div class="chart-host"></div>
+        </article>
+      </div>
+    </section>
+
     <!-- ============================== Orders -->
     <section id="tab-orders" class="hidden">
       <div class="card">
@@ -218,6 +261,7 @@
   </main>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="/static/charts.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

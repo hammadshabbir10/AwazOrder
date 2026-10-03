@@ -8,6 +8,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
+from app.history import seed_history
 from app.seed import DEMO_USER, PRODUCTS, SHOPS
 
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "awaz.db"))
@@ -56,6 +57,10 @@ CREATE TABLE IF NOT EXISTS notes (
     draft_json TEXT NOT NULL,
     order_id INTEGER
 );
+CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY,
     shop_id INTEGER NOT NULL REFERENCES shops(id),
@@ -97,14 +102,22 @@ def connect():
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Add columns introduced after a database was first created."""
-    have = {r["name"] for r in conn.execute("PRAGMA table_info(orders)")}
-    for column, ddl in (
-        ("reply", "TEXT NOT NULL DEFAULT ''"),
-        ("spoken", "TEXT NOT NULL DEFAULT ''"),
-        ("note_id", "INTEGER"),
+    for table, columns in (
+        ("orders", (
+            ("reply", "TEXT NOT NULL DEFAULT ''"),
+            ("spoken", "TEXT NOT NULL DEFAULT ''"),
+            ("note_id", "INTEGER"),
+            ("processing_ms", "INTEGER"),      # voice/text -> draft time, for analytics
+            ("review_lines", "INTEGER"),       # lines the AI flagged as uncertain
+            ("ai_mode", "TEXT"),               # ai | offline | cached
+            ("seeded", "INTEGER NOT NULL DEFAULT 0"),
+        )),
+        ("ledger", (("seeded", "INTEGER NOT NULL DEFAULT 0"),)),
     ):
-        if column not in have:
-            conn.execute(f"ALTER TABLE orders ADD COLUMN {column} {ddl}")
+        have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for column, ddl in columns:
+            if column not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
 def init_db() -> None:
@@ -131,6 +144,8 @@ def init_db() -> None:
                         "INSERT INTO ledger (shop_id, created_at, kind, amount, note) VALUES (?, ?, 'opening', ?, 'Opening balance')",
                         (cur.lastrowid, now(), opening),
                     )
+        if os.environ.get("SEED_HISTORY", "1") == "1":
+            seed_history(conn)
 
 
 def get_products() -> list[dict]:
