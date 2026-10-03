@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Awaz Order</title>
+  <meta name="description" content="AI order desk that turns Urdu/Punjabi WhatsApp voice notes into confirmed orders and khata entries." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f766e'/><path d='M10 13v6M14 9v14M18 11v10M22 14v4' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <!-- Login -->
+  <main id="login-view" class="login hidden">
+    <div class="login-card">
+      <div class="brand big"><span class="logo"></span>Awaz Order</div>
+      <p class="tagline">Voice notes in. Orders and khata out.</p>
+      <p class="sub">AI order desk for Pakistani distributors: Urdu, Punjabi and English WhatsApp voice notes become priced orders, ledger entries and Urdu confirmations.</p>
+      <form id="login-form">
+        <label>Email<input id="email" type="email" autocomplete="username" required /></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" required /></label>
+        <button class="btn primary" type="submit">Log in</button>
+        <p id="login-error" class="error" role="alert"></p>
+      </form>
+      <div class="demo-creds">
+        <span>Demo account</span>
+        <code>demo@awazorder.pk</code> / <code>Demo@1234</code>
+        <button id="fill-demo" class="btn ghost small" type="button">Use demo account</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- App -->
+  <div id="app-view" class="hidden">
+    <header class="topbar">
+      <div class="brand"><span class="logo"></span>Awaz Order</div>
+      <div class="top-right">
+        <span id="ai-status" class="badge" title="AI provider status">AI…</span>
+        <span id="user-name" class="muted user"></span>
+        <button id="logout" class="btn ghost small">Log out</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><span>Orders today</span><strong id="st-orders">0</strong></div>
+      <div class="stat"><span>Order value today</span><strong id="st-value">Rs 0</strong></div>
+      <div class="stat"><span>Outstanding khata</span><strong id="st-out">Rs 0</strong></div>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="new">New order</button>
+      <button class="tab" data-tab="orders">Orders</button>
+      <button class="tab" data-tab="khata">Khata</button>
+      <button class="tab" data-tab="catalogue">Catalogue</button>
+    </nav>
+
+    <!-- New order -->
+    <section id="tab-new" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h2>1. Send a voice note</h2>
+          <p class="muted">Record up to 30 seconds in Urdu, Punjabi or English, as a shopkeeper would on WhatsApp.</p>
+          <div class="recorder">
+            <button id="rec-btn" class="rec" aria-label="Record voice note"><span></span></button>
+            <div>
+              <strong id="rec-label">Tap to record</strong>
+              <div id="rec-timer" class="muted">0:00 / 0:30</div>
+            </div>
+          </div>
+          <div class="or"><span>or</span></div>
+          <label class="upload">Upload an audio file (mp3, m4a, ogg, wav, webm)
+            <input id="audio-file" type="file" accept="audio/*" />
+          </label>
+          <div class="or"><span>or type it</span></div>
+          <textarea id="order-text" rows="3" dir="auto" placeholder="e.g. 2 carton Shan biryani masala, 5 tin Dalda, udhaar likh do"></textarea>
+          <button id="parse-text" class="btn">Process typed order</button>
+        </div>
+
+        <div class="card">
+          <h2>Try a sample order</h2>
+          <p class="muted">Pre-processed examples: instant, and they work even if the AI service is busy.</p>
+          <div id="samples" class="samples"></div>
+        </div>
+      </div>
+
+      <div id="busy" class="card busy hidden"><div class="spinner"></div><span id="busy-text">Listening to the voice note…</span></div>
+      <p id="parse-error" class="error card hidden" role="alert"></p>
+
+      <div id="draft" class="card hidden">
+        <div class="draft-head">
+          <h2>2. Review the order</h2>
+          <span id="mode-badge" class="badge"></span>
+        </div>
+        <div class="transcript"><span class="muted">Transcript</span><p id="transcript" dir="auto"></p></div>
+        <div id="unmatched" class="warn hidden"></div>
+        <div class="table-wrap">
+          <table class="lines">
+            <thead><tr><th>Product</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th></th></tr></thead>
+            <tbody id="lines"></tbody>
+          </table>
+        </div>
+        <button id="add-line" class="btn ghost small">+ Add item</button>
+        <div class="draft-foot">
+          <label>Shop<select id="shop"></select></label>
+          <label>Payment<select id="payment">
+            <option value="credit">Khata (credit)</option>
+            <option value="cash">Cash</option>
+            <option value="unknown">Ask shop</option>
+          </select></label>
+          <div class="total">Total <strong id="draft-total">Rs 0</strong></div>
+          <button id="confirm" class="btn primary">Confirm order</button>
+        </div>
+      </div>
+
+      <div id="done" class="card hidden">
+        <h2>3. Order confirmed <span id="done-id" class="muted"></span></h2>
+        <p class="muted">Copy this reply into the shop's WhatsApp chat.</p>
+        <pre id="reply" class="reply" dir="rtl"></pre>
+        <div class="row">
+          <button id="copy-reply" class="btn">Copy reply</button>
+          <a id="wa-link" class="btn ghost" target="_blank" rel="noopener">Open in WhatsApp</a>
+          <button id="new-order" class="btn primary">New order</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-orders" class="panel hidden">
+      <div class="card"><h2>Recent orders</h2><div id="orders" class="table-wrap"></div></div>
+    </section>
+
+    <section id="tab-khata" class="panel hidden">
+      <div class="grid-2">
+        <div class="card"><h2>Shops</h2><div id="shops"></div></div>
+        <div class="card" id="ledger-card"><h2 id="ledger-title">Select a shop</h2><div id="ledger"></div></div>
+      </div>
+    </section>
+
+    <section id="tab-catalogue" class="panel hidden">
+      <div class="card"><h2>Catalogue <span class="muted">(demo prices)</span></h2><div id="catalogue" class="cat-grid"></div></div>
+    </section>
+
+    <footer class="foot muted">Awaz Order MVP · open models: Whisper large-v3 + Qwen 3.8 / gpt-oss-120b · offline fallback parser</footer>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

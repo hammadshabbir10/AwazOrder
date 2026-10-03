@@ -1,0 +1,283 @@
+{
+  "s1": {
+    "transcript": "Assalam o alaikum bhai, Bismillah General Store se bol raha hoon. 2 carton Shan biryani masala, 5 tin Dalda, aur 3 carton karahi masala bhej dein. Udhaar likh dena.",
+    "lines": [
+      {
+        "sku": "SHAN-BIRYANI",
+        "name": "Shan Biryani Masala 50g",
+        "unit": "carton",
+        "spoken": "Shan biryani masala",
+        "quantity": 2,
+        "price": 9500,
+        "line_total": 19000,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "DALDA-TIN",
+        "name": "Dalda Banaspati Ghee 5kg Tin",
+        "unit": "tin",
+        "spoken": "Dalda",
+        "quantity": 5,
+        "price": 2950,
+        "line_total": 14750,
+        "confidence": 0.9,
+        "needs_review": true,
+        "alternatives": [
+          {
+            "sku": "DALDA-OIL",
+            "name": "Dalda Cooking Oil 1L Pouch"
+          }
+        ]
+      },
+      {
+        "sku": "SHAN-KARAHI",
+        "name": "Shan Chicken Karahi Masala 50g",
+        "unit": "carton",
+        "spoken": "karahi masala",
+        "quantity": 3,
+        "price": 8800,
+        "line_total": 26400,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      }
+    ],
+    "unmatched": [],
+    "payment": "credit",
+    "shop_id": 1,
+    "total": 60150,
+    "mode": "ai",
+    "provider": "groq:qwen/qwen3.8-27b",
+    "ai_error": null
+  },
+  "s2": {
+    "transcript": "بھائی مدینہ کریانہ کے لیے چار پیکٹ ٹپال دانےدار، دو کارٹن ملک پیک اور ایک بوری چینی بھیج دیں۔ ادائیگی نقد کریں گے۔",
+    "lines": [
+      {
+        "sku": "TAPAL-DANEDAR",
+        "name": "Tapal Danedar Tea 950g",
+        "unit": "pack",
+        "spoken": "چار پیکٹ ٹپال دانےدار",
+        "quantity": 4,
+        "price": 1650,
+        "line_total": 6600,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "MILKPAK-1L",
+        "name": "Nestle Milkpak 1L",
+        "unit": "carton",
+        "spoken": "دو کارٹن ملک پیک",
+        "quantity": 2,
+        "price": 3900,
+        "line_total": 7800,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "SUGAR-50KG",
+        "name": "Sugar 50kg",
+        "unit": "bori",
+        "spoken": "ایک بوری چینی",
+        "quantity": 1,
+        "price": 7800,
+        "line_total": 7800,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      }
+    ],
+    "unmatched": [],
+    "payment": "cash",
+    "shop_id": null,
+    "total": 22200,
+    "mode": "ai",
+    "provider": "groq:openai/gpt-oss-120b",
+    "ai_error": null
+  },
+  "s3": {
+    "transcript": "Faisal Super Store. Ek carton Lifebuoy, do carton Surf Excel, teen carton sabun, aur 1 carton Colgate. Khata mein likh do.",
+    "lines": [
+      {
+        "sku": "LIFEBUOY",
+        "name": "Lifebuoy Soap 110g",
+        "unit": "carton",
+        "spoken": "Ek carton Lifebuoy",
+        "quantity": 1,
+        "price": 8200,
+        "line_total": 8200,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "SURF-EXCEL",
+        "name": "Surf Excel 1kg",
+        "unit": "carton",
+        "spoken": "do carton Surf Excel",
+        "quantity": 2,
+        "price": 6600,
+        "line_total": 13200,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "LIFEBUOY",
+        "name": "Lifebuoy Soap 110g",
+        "unit": "carton",
+        "spoken": "teen carton sabun",
+        "quantity": 3,
+        "price": 8200,
+        "line_total": 24600,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "COLGATE",
+        "name": "Colgate Toothpaste 100g",
+        "unit": "carton",
+        "spoken": "1 carton Colgate",
+        "quantity": 1,
+        "price": 9600,
+        "line_total": 9600,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      }
+    ],
+    "unmatched": [],
+    "payment": "credit",
+    "shop_id": 4,
+    "total": 55600,
+    "mode": "ai",
+    "provider": "groq:openai/gpt-oss-120b",
+    "ai_error": null
+  },
+  "s4": {
+    "transcript": "Chaudhry Mart ke liye 10 carton Pepsi, 5 carton Sprite, 6 carton Prince biscuit aur 4 carton Slanty. Cash payment.",
+    "lines": [
+      {
+        "sku": "PEPSI-1.5L",
+        "name": "Pepsi 1.5L",
+        "unit": "carton",
+        "spoken": "10 carton Pepsi",
+        "quantity": 10,
+        "price": 1100,
+        "line_total": 11000,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "SPRITE-1.5L",
+        "name": "Sprite 1.5L",
+        "unit": "carton",
+        "spoken": "5 carton Sprite",
+        "quantity": 5,
+        "price": 1100,
+        "line_total": 5500,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "LU-PRINCE",
+        "name": "LU Prince Biscuit",
+        "unit": "carton",
+        "spoken": "6 carton Prince biscuit",
+        "quantity": 6,
+        "price": 1100,
+        "line_total": 6600,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "KOLSON-SLANTY",
+        "name": "Kolson Slanty",
+        "unit": "carton",
+        "spoken": "4 carton Slanty",
+        "quantity": 4,
+        "price": 1300,
+        "line_total": 5200,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      }
+    ],
+    "unmatched": [],
+    "payment": "cash",
+    "shop_id": 6,
+    "total": 28300,
+    "mode": "ai",
+    "provider": "groq:openai/gpt-oss-120b",
+    "ai_error": null
+  },
+  "s5": {
+    "transcript": "Usman Karyana. 3 bori sella chawal, 5 bag atta, 20 kilo daal chana aur 10 kilo masoor. Udhar.",
+    "lines": [
+      {
+        "sku": "SELLA-25KG",
+        "name": "Sella Rice 25kg",
+        "unit": "bori",
+        "spoken": "3 bori sella chawal",
+        "quantity": 3,
+        "price": 9500,
+        "line_total": 28500,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "ATTA-20KG",
+        "name": "Sunridge Chakki Atta 20kg",
+        "unit": "bag",
+        "spoken": "5 bag atta",
+        "quantity": 5,
+        "price": 2900,
+        "line_total": 14500,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "DAAL-CHANA",
+        "name": "Daal Chana",
+        "unit": "kg",
+        "spoken": "20 kilo daal chana",
+        "quantity": 20,
+        "price": 290,
+        "line_total": 5800,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      },
+      {
+        "sku": "DAAL-MASOOR",
+        "name": "Daal Masoor",
+        "unit": "kg",
+        "spoken": "10 kilo masoor",
+        "quantity": 10,
+        "price": 330,
+        "line_total": 3300,
+        "confidence": 1.0,
+        "needs_review": false,
+        "alternatives": []
+      }
+    ],
+    "unmatched": [],
+    "payment": "credit",
+    "shop_id": 5,
+    "total": 52100,
+    "mode": "ai",
+    "provider": "groq:openai/gpt-oss-120b",
+    "ai_error": null
+  }
+}

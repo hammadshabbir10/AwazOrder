@@ -1,0 +1,49 @@
+flowchart TD
+    subgraph Client["Client: web app (mobile-friendly)"]
+        U["Distributor / order-taker"]
+        FE["Web UI: login, record or upload voice note, type order, review, khata dashboard"]
+    end
+
+    subgraph Backend["FastAPI backend"]
+        AUTH["Auth + per-user rate limit + 30s audio limit"]
+        SAMPLES["Sample cache: pre-processed demo orders, no API call"]
+        ASR["Speech-to-text: Whisper large-v3 with brand-name prompt"]
+        EXT["Order extraction: Qwen 3.8 27B, then gpt-oss-120b, catalogue-constrained JSON"]
+        OFF["Offline parser: Urdu/Roman Urdu number words, units, filler rules"]
+        MATCH["Catalogue matching + validation: RapidFuzz over Urdu / Roman Urdu / English aliases"]
+        CONF{"Confident match?"}
+        REVIEW["Human review: highlighted lines, 'Did you mean...?' suggestions"]
+        ORDER["Create order + price lines"]
+        LEDGER["Khata ledger: credit entries, payments, balances"]
+        REPLY["Urdu WhatsApp confirmation generator"]
+    end
+
+    subgraph Inference["Open-model inference (fallback chain)"]
+        P1["Primary: Groq"]
+        P2["Backup: OpenAI-compatible provider, same open models"]
+    end
+
+    subgraph Data["Data"]
+        DB[("SQLite / PostgreSQL: users, shops, orders, ledger")]
+        CAT[("Product catalogue + aliases + prices")]
+    end
+
+    U --> FE --> AUTH
+    AUTH -->|sample| SAMPLES --> CONF
+    AUTH -->|voice note| ASR --> EXT
+    AUTH -->|typed text| EXT
+    ASR -.-> P1
+    EXT -.-> P1
+    P1 -.->|rate limit / outage| P2
+    P2 -.->|both unavailable| OFF
+    EXT --> MATCH
+    OFF --> MATCH
+    MATCH --> CAT
+    MATCH --> CONF
+    CONF -->|no| REVIEW
+    CONF -->|yes| QUICK["One-tap confirm"]
+    REVIEW -->|corrected + confirmed| ORDER
+    QUICK --> ORDER
+    ORDER --> DB
+    ORDER --> LEDGER --> DB
+    LEDGER --> REPLY --> FE

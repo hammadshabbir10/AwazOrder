@@ -1,0 +1,32 @@
+[
+  {
+    "id": "s1",
+    "title": "Roman Urdu: masala + ghee on credit",
+    "shop": "Bismillah General Store",
+    "transcript": "Assalam o alaikum bhai, Bismillah General Store se bol raha hoon. 2 carton Shan biryani masala, 5 tin Dalda, aur 3 carton karahi masala bhej dein. Udhaar likh dena."
+  },
+  {
+    "id": "s2",
+    "title": "Urdu script: tea, milk, sugar",
+    "shop": "Madina Karyana",
+    "transcript": "بھائی مدینہ کریانہ کے لیے چار پیکٹ ٹپال دانےدار، دو کارٹن ملک پیک اور ایک بوری چینی بھیج دیں۔ ادائیگی نقد کریں گے۔"
+  },
+  {
+    "id": "s3",
+    "title": "Mixed: soaps and detergent, ambiguous item",
+    "shop": "Faisal Super Store",
+    "transcript": "Faisal Super Store. Ek carton Lifebuoy, do carton Surf Excel, teen carton sabun, aur 1 carton Colgate. Khata mein likh do."
+  },
+  {
+    "id": "s4",
+    "title": "Drinks and biscuits, cash",
+    "shop": "Chaudhry Mart",
+    "transcript": "Chaudhry Mart ke liye 10 carton Pepsi, 5 carton Sprite, 6 carton Prince biscuit aur 4 carton Slanty. Cash payment."
+  },
+  {
+    "id": "s5",
+    "title": "Rice, atta and daal",
+    "shop": "Usman Karyana",
+    "transcript": "Usman Karyana. 3 bori sella chawal, 5 bag atta, 20 kilo daal chana aur 10 kilo masoor. Udhar."
+  }
+]
