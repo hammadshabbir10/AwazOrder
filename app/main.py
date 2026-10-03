@@ -90,14 +90,21 @@ def login(body: LoginIn, response: Response):
         row = conn.execute("SELECT * FROM users WHERE email = ?", (body.email.strip().lower(),)).fetchone()
     if not row or not verify_password(body.password, row["password_hash"]):
         raise HTTPException(401, "That email and password don't match. Try the demo account below.")
-    response.set_cookie("session", make_session(row["id"]), httponly=True, samesite="lax",
-                        max_age=SESSION_HOURS * 3600, secure=os.environ.get("COOKIE_SECURE") == "1")
+    response.set_cookie("session", make_session(row["id"]), httponly=True, max_age=SESSION_HOURS * 3600,
+                        **_cookie_flags())
     return {"name": row["name"], "email": row["email"]}
+
+
+def _cookie_flags() -> dict:
+    # Hosts that embed the app in an iframe (Hugging Face Spaces) need
+    # SameSite=None, which browsers only accept together with Secure.
+    samesite = os.environ.get("COOKIE_SAMESITE", "lax").lower()
+    return {"samesite": samesite, "secure": os.environ.get("COOKIE_SECURE") == "1" or samesite == "none"}
 
 
 @app.post("/api/logout")
 def logout(response: Response):
-    response.delete_cookie("session")
+    response.delete_cookie("session", httponly=True, **_cookie_flags())
     return {"ok": True}
 
 

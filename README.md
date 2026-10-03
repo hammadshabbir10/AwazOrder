@@ -1,3 +1,14 @@
+---
+title: Awaz Order
+emoji: 🎙️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: AI order desk for Urdu and Punjabi voice-note orders
+---
+
 # Awaz Order
 
 AI order desk for Pakistani distributors. Shopkeepers order by WhatsApp voice
