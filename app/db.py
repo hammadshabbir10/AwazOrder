@@ -40,7 +40,21 @@ CREATE TABLE IF NOT EXISTS orders (
     payment TEXT NOT NULL,
     total INTEGER NOT NULL,
     source TEXT NOT NULL,
-    lines_json TEXT NOT NULL
+    lines_json TEXT NOT NULL,
+    reply TEXT NOT NULL DEFAULT '',
+    spoken TEXT NOT NULL DEFAULT '',
+    note_id INTEGER
+);
+CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    kind TEXT NOT NULL,          -- voice | text
+    transcript TEXT NOT NULL,
+    audio_path TEXT,
+    duration REAL,
+    draft_json TEXT NOT NULL,
+    order_id INTEGER
 );
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY,
@@ -81,9 +95,22 @@ def connect():
         conn.close()
 
 
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after a database was first created."""
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(orders)")}
+    for column, ddl in (
+        ("reply", "TEXT NOT NULL DEFAULT ''"),
+        ("spoken", "TEXT NOT NULL DEFAULT ''"),
+        ("note_id", "INTEGER"),
+    ):
+        if column not in have:
+            conn.execute(f"ALTER TABLE orders ADD COLUMN {column} {ddl}")
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0:
             conn.execute(
                 "INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)",

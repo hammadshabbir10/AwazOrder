@@ -86,11 +86,20 @@ def parse_text(transcript: str, use_ai: bool = True) -> dict:
     return draft
 
 
+class NoSpeech(Exception):
+    """The recording had no usable speech."""
+
+
+# What Whisper tends to invent from silence or background noise.
+WHISPER_SILENCE = {"thank you", "thanks for watching", "شکریہ", "you", "bye", "subtitles"}
+
+
 def parse_audio(audio: bytes, filename: str, content_type: str) -> dict:
     products = get_products()
     transcript, asr_provider = ai.transcribe(audio, filename, content_type, vocabulary_hint(products))
-    if not transcript:
-        raise ai.AllProvidersFailed("the voice note had no recognisable speech")
+    cleaned = transcript.strip(" .۔!?،,").lower()
+    if len(cleaned) < 4 or cleaned in WHISPER_SILENCE:
+        raise NoSpeech()
     draft = parse_text(transcript)
     draft["asr_provider"] = asr_provider
     return draft
@@ -98,6 +107,27 @@ def parse_audio(audio: bytes, filename: str, content_type: str) -> dict:
 
 def format_pkr(amount: float) -> str:
     return f"Rs {round(amount):,}"
+
+
+URDU_UNITS = {"carton": "کارٹن", "tin": "ٹین", "pack": "پیکٹ", "bag": "بیگ", "bori": "بوری", "kg": "کلو", "bottle": "بوتل"}
+
+
+def spoken_reply(order_id: int, shop_name: str, lines: list[dict], total: int,
+                 payment: str, balance: int) -> str:
+    """The same confirmation, phrased to be read aloud (no symbols or bullets)."""
+    items = "، ".join(
+        f"{l['quantity']} {URDU_UNITS.get(l['unit'], l['unit'])} {l['name']}" for l in lines
+    )
+    if payment == "credit":
+        pay = f"یہ رقم آپ کے کھاتے میں لکھ دی گئی ہے، اور کل بقایا {round(balance):,} روپے ہے۔"
+    elif payment == "cash":
+        pay = "ادائیگی ڈیلیوری پر نقد ہو گی۔"
+    else:
+        pay = "براہِ کرم بتا دیں کہ ادائیگی نقد ہو گی یا کھاتے میں۔"
+    return (
+        f"السلام علیکم {shop_name}۔ آپ کا آرڈر نمبر {order_id} کنفرم ہو گیا ہے۔ "
+        f"{items}۔ کل رقم {round(total):,} روپے۔ {pay} شکریہ۔"
+    )
 
 
 def whatsapp_reply(order_id: int, shop_name: str, lines: list[dict], total: int,

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard — Awaz Order</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d3557'/%3E%3Cpath d='M9 13v6M13 9v14M17 11.5v9M21 14v4' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="inner">
+      <a class="brand" href="/"><span class="logo"></span>Awaz Order</a>
+      <nav class="app-tabs" role="tablist" aria-label="Sections">
+        <button class="active" data-tab="new" role="tab">New order</button>
+        <button data-tab="orders" role="tab">Orders</button>
+        <button data-tab="khata" role="tab">Khata</button>
+        <button data-tab="catalogue" role="tab">Catalogue</button>
+      </nav>
+      <div class="right">
+        <span id="ai-status" class="pill">Checking AI…</span>
+        <span class="avatar" id="avatar">AO</span>
+        <span class="user-name" id="user-name"></span>
+        <button class="btn ghost sm" id="logout">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="page-head">
+      <div>
+        <h1 id="greeting">Welcome back</h1>
+        <p>Record a shopkeeper's order, review it, and send the Urdu confirmation.</p>
+      </div>
+    </div>
+
+    <section class="stats" aria-label="Today at a glance">
+      <div class="stat"><span>Orders today</span><strong id="st-orders">0</strong></div>
+      <div class="stat"><span>Order value today</span><strong id="st-value">Rs 0</strong></div>
+      <div class="stat"><span>Outstanding khata</span><strong id="st-out">Rs 0</strong></div>
+      <div class="stat"><span>Voice notes processed</span><strong id="st-notes">0</strong></div>
+    </section>
+
+    <!-- ============================== New order -->
+    <section id="tab-new" class="order-grid">
+      <div class="stack">
+        <div class="card" id="capture">
+          <div class="card-head">
+            <div>
+              <h2>Capture an order</h2>
+              <p>Speak naturally, like a shopkeeper on WhatsApp. Up to 30 seconds.</p>
+            </div>
+            <div class="segmented" role="tablist" aria-label="Input method">
+              <button class="active" data-mode="record"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>Record</button>
+              <button data-mode="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload</button>
+              <button data-mode="type"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Type</button>
+            </div>
+          </div>
+
+          <!-- record -->
+          <div id="mode-record">
+            <div class="recorder" id="rec-idle">
+              <button class="mic" id="mic" aria-label="Start recording">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>
+              </button>
+              <div class="rec-time" id="rec-time">0:00 <small>/ 0:30</small></div>
+              <div class="meter" id="meter" aria-hidden="true"></div>
+              <div class="rec-progress"><div id="rec-bar"></div></div>
+              <p class="rec-hint" id="rec-hint">Tap the mic and say the order, e.g. <span lang="ur" class="urdu">“دو کارٹن شان بریانی، پانچ ٹین ڈالڈا، ادھار لکھ دیں”</span></p>
+            </div>
+          </div>
+
+          <!-- upload -->
+          <div id="mode-upload" class="hidden">
+            <label class="dropzone" id="dropzone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>
+              <strong>Drop a voice note here, or click to choose</strong>
+              <small>WhatsApp .opus, .ogg, .m4a, .mp3, .wav or .webm · up to 30 seconds · max 3 MB</small>
+              <input type="file" id="file" accept="audio/*,.opus,.ogg,.m4a,.mp3,.wav,.webm" class="sr-only" />
+            </label>
+          </div>
+
+          <!-- type -->
+          <div id="mode-type" class="hidden type-area">
+            <textarea id="order-text" rows="4" dir="auto" maxlength="1500" placeholder="e.g. 2 carton Shan biryani masala, 5 tin Dalda, 3 carton Pepsi — udhaar likh do"></textarea>
+            <div class="counter"><span id="char-count">0</span> / 1500</div>
+            <div class="chips" id="examples"></div>
+            <div><button class="btn primary" id="parse-text">Process order</button></div>
+          </div>
+
+          <!-- shared preview after recording / choosing a file -->
+          <div class="preview hidden" id="preview">
+            <audio id="preview-audio" controls preload="metadata"></audio>
+            <p class="muted" id="preview-meta" style="font-size:13px"></p>
+            <div class="actions">
+              <button class="btn primary" id="process-audio">Process voice note</button>
+              <button class="btn" id="discard">Record again</button>
+            </div>
+          </div>
+
+          <div class="alert error" id="capture-error" role="alert"></div>
+        </div>
+
+        <!-- processing -->
+        <div class="card hidden" id="processing" aria-live="polite">
+          <div class="card-head"><h2>Processing…</h2><span class="spinner dark"></span></div>
+          <div class="progress-steps">
+            <ol id="steps"></ol>
+          </div>
+        </div>
+
+        <!-- review -->
+        <div class="card hidden" id="review">
+          <div class="card-head">
+            <div><h2>Review the order</h2><p>Check highlighted items, choose the shop, then confirm.</p></div>
+            <span class="pill" id="mode-badge"></span>
+          </div>
+          <div class="transcript-box">
+            <span class="label">What the AI heard</span>
+            <p id="transcript" dir="auto"></p>
+            <audio id="review-audio" controls class="hidden" style="width:100%;max-width:420px"></audio>
+          </div>
+          <div class="alert warn hidden" id="unmatched"></div>
+          <div class="alert info hidden" id="no-items">No catalogue items were recognised. Add them below, or record the order again a little more clearly.</div>
+          <div class="table-wrap">
+            <table class="lines">
+              <thead><tr><th>Product</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th><span class="sr-only">Remove</span></th></tr></thead>
+              <tbody id="lines"></tbody>
+            </table>
+          </div>
+          <div><button class="btn sm" id="add-line">+ Add item</button></div>
+          <div class="review-foot">
+            <label class="field"><span>Shop</span><select id="shop"></select></label>
+            <label class="field"><span>Payment</span>
+              <select id="payment">
+                <option value="credit">Khata (credit)</option>
+                <option value="cash">Cash on delivery</option>
+                <option value="unknown">Ask the shop</option>
+              </select>
+            </label>
+            <div class="grand"><span>Order total</span><strong id="draft-total">Rs 0</strong></div>
+            <button class="btn primary lg" id="confirm">Confirm order</button>
+          </div>
+          <div class="alert error" id="review-error" role="alert"></div>
+        </div>
+
+        <!-- done -->
+        <div class="card hidden" id="done">
+          <div class="done-head">
+            <span class="done-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div><h2 id="done-title">Order confirmed</h2><p class="muted" id="done-sub"></p></div>
+          </div>
+          <pre class="wa-bubble" id="reply" lang="ur"></pre>
+          <audio id="tts-audio" class="hidden" controls style="width:100%;max-width:420px"></audio>
+          <div class="done-actions">
+            <button class="btn accent" id="listen">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>
+              Listen in Urdu
+            </button>
+            <button class="btn" id="copy-reply">Copy reply</button>
+            <a class="btn" id="wa-link" target="_blank" rel="noopener">Open in WhatsApp</a>
+            <button class="btn primary" id="new-order">New order</button>
+          </div>
+          <p class="tts-hint" id="tts-hint"></p>
+        </div>
+      </div>
+
+      <aside class="stack">
+        <div class="card">
+          <div class="card-head">
+            <div><h2>Your voice notes</h2><p>Every recording and typed order you process.</p></div>
+          </div>
+          <div class="list" id="notes"></div>
+        </div>
+        <div class="card">
+          <details class="samples">
+            <summary>Sample orders</summary>
+            <p class="muted" style="font-size:13px;margin:10px 0 12px">Pre-processed examples that open instantly, even when the AI is busy.</p>
+            <div class="list" id="samples"></div>
+          </details>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ============================== Orders -->
+    <section id="tab-orders" class="hidden">
+      <div class="card">
+        <div class="card-head"><div><h2>Orders</h2><p>The last 100 confirmed orders.</p></div></div>
+        <div class="table-wrap" id="orders"></div>
+      </div>
+    </section>
+
+    <!-- ============================== Khata -->
+    <section id="tab-khata" class="khata-grid hidden">
+      <div class="card">
+        <div class="card-head"><div><h2>Shops</h2><p>Balance owed to you.</p></div></div>
+        <div class="list" id="shops" style="gap:4px"></div>
+      </div>
+      <div class="card" id="ledger-card">
+        <div class="card-head"><div><h2 id="ledger-title">Select a shop</h2><p id="ledger-sub">See its khata history and record payments.</p></div></div>
+        <div id="ledger"></div>
+      </div>
+    </section>
+
+    <!-- ============================== Catalogue -->
+    <section id="tab-catalogue" class="hidden">
+      <div class="card">
+        <div class="card-head">
+          <div><h2>Catalogue</h2><p>Products and the Urdu / Roman Urdu names the AI matches. Demo prices.</p></div>
+          <input class="search" id="cat-search" type="search" placeholder="Search products or aliases…" />
+        </div>
+        <div class="cat-grid" id="catalogue"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

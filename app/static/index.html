@@ -3,148 +3,218 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Awaz Order</title>
-  <meta name="description" content="AI order desk that turns Urdu/Punjabi WhatsApp voice notes into confirmed orders and khata entries." />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f766e'/><path d='M10 13v6M14 9v14M18 11v10M22 14v4' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>" />
+  <title>Awaz Order — AI order desk for Pakistani distributors</title>
+  <meta name="description" content="Awaz Order turns Urdu and Punjabi WhatsApp voice notes into priced orders, khata entries and Urdu confirmations in seconds." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d3557'/%3E%3Cpath d='M9 13v6M13 9v14M17 11.5v9M21 14v4' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <!-- Login -->
-  <main id="login-view" class="login hidden">
-    <div class="login-card">
-      <div class="brand big"><span class="logo"></span>Awaz Order</div>
-      <p class="tagline">Voice notes in. Orders and khata out.</p>
-      <p class="sub">AI order desk for Pakistani distributors: Urdu, Punjabi and English WhatsApp voice notes become priced orders, ledger entries and Urdu confirmations.</p>
-      <form id="login-form">
-        <label>Email<input id="email" type="email" autocomplete="username" required /></label>
-        <label>Password<input id="password" type="password" autocomplete="current-password" required /></label>
-        <button class="btn primary" type="submit">Log in</button>
-        <p id="login-error" class="error" role="alert"></p>
-      </form>
-      <div class="demo-creds">
-        <span>Demo account</span>
-        <code>demo@awazorder.pk</code> / <code>Demo@1234</code>
-        <button id="fill-demo" class="btn ghost small" type="button">Use demo account</button>
-      </div>
+  <header class="site-nav" id="site-nav">
+    <div class="inner">
+      <a class="brand" href="/"><span class="logo"></span>Awaz Order</a>
+      <nav aria-label="Sections">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#architecture">Architecture</a>
+      </nav>
+      <a class="btn primary sm" id="nav-cta" href="/login">Sign in</a>
     </div>
-  </main>
+  </header>
 
-  <!-- App -->
-  <div id="app-view" class="hidden">
-    <header class="topbar">
-      <div class="brand"><span class="logo"></span>Awaz Order</div>
-      <div class="top-right">
-        <span id="ai-status" class="badge" title="AI provider status">AI…</span>
-        <span id="user-name" class="muted user"></span>
-        <button id="logout" class="btn ghost small">Log out</button>
-      </div>
-    </header>
+  <main>
+    <!-- 1. Hero -->
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <span class="eyebrow">AI order desk · Built for Pakistan</span>
+          <h1 style="margin-top:16px">Voice notes in.<br><em>Orders and khata</em> out.</h1>
+          <p class="lede">Shopkeepers order by WhatsApp voice note in Urdu and Punjabi. Awaz Order listens, builds the priced order, updates their khata and replies in Urdu — in seconds, not minutes.</p>
+          <div class="ctas">
+            <a class="btn primary lg" href="/login">
+              Try the live demo
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a class="btn lg" href="#how">See how it works</a>
+          </div>
+          <div class="trust">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Urdu · Punjabi · English</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Open-source AI models</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Keeps working if AI is down</span>
+          </div>
+        </div>
 
-    <section class="stats">
-      <div class="stat"><span>Orders today</span><strong id="st-orders">0</strong></div>
-      <div class="stat"><span>Order value today</span><strong id="st-value">Rs 0</strong></div>
-      <div class="stat"><span>Outstanding khata</span><strong id="st-out">Rs 0</strong></div>
-    </section>
-
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="new">New order</button>
-      <button class="tab" data-tab="orders">Orders</button>
-      <button class="tab" data-tab="khata">Khata</button>
-      <button class="tab" data-tab="catalogue">Catalogue</button>
-    </nav>
-
-    <!-- New order -->
-    <section id="tab-new" class="panel">
-      <div class="grid-2">
-        <div class="card">
-          <h2>1. Send a voice note</h2>
-          <p class="muted">Record up to 30 seconds in Urdu, Punjabi or English, as a shopkeeper would on WhatsApp.</p>
-          <div class="recorder">
-            <button id="rec-btn" class="rec" aria-label="Record voice note"><span></span></button>
-            <div>
-              <strong id="rec-label">Tap to record</strong>
-              <div id="rec-timer" class="muted">0:00 / 0:30</div>
+        <div class="hero-visual" aria-label="Example: a voice note becomes an order">
+          <span class="ai-tag">AI processing</span>
+          <div class="chat">
+            <div class="bubble in">
+              <div class="who">Bismillah General Store</div>
+              <div class="voice">
+                <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg></span>
+                <div class="wave" id="hero-wave" aria-hidden="true"></div>
+                <span class="muted" style="font-size:12px">0:14</span>
+              </div>
+              <p class="muted" style="font-size:13px;margin-top:8px">“Do carton Shan biryani masala, paanch tin Dalda… udhaar likh dena.”</p>
             </div>
           </div>
-          <div class="or"><span>or</span></div>
-          <label class="upload">Upload an audio file (mp3, m4a, ogg, wav, webm)
-            <input id="audio-file" type="file" accept="audio/*" />
-          </label>
-          <div class="or"><span>or type it</span></div>
-          <textarea id="order-text" rows="3" dir="auto" placeholder="e.g. 2 carton Shan biryani masala, 5 tin Dalda, udhaar likh do"></textarea>
-          <button id="parse-text" class="btn">Process typed order</button>
-        </div>
-
-        <div class="card">
-          <h2>Try a sample order</h2>
-          <p class="muted">Pre-processed examples: instant, and they work even if the AI service is busy.</p>
-          <div id="samples" class="samples"></div>
-        </div>
-      </div>
-
-      <div id="busy" class="card busy hidden"><div class="spinner"></div><span id="busy-text">Listening to the voice note…</span></div>
-      <p id="parse-error" class="error card hidden" role="alert"></p>
-
-      <div id="draft" class="card hidden">
-        <div class="draft-head">
-          <h2>2. Review the order</h2>
-          <span id="mode-badge" class="badge"></span>
-        </div>
-        <div class="transcript"><span class="muted">Transcript</span><p id="transcript" dir="auto"></p></div>
-        <div id="unmatched" class="warn hidden"></div>
-        <div class="table-wrap">
-          <table class="lines">
-            <thead><tr><th>Product</th><th>Qty</th><th>Unit</th><th>Price</th><th>Total</th><th></th></tr></thead>
-            <tbody id="lines"></tbody>
-          </table>
-        </div>
-        <button id="add-line" class="btn ghost small">+ Add item</button>
-        <div class="draft-foot">
-          <label>Shop<select id="shop"></select></label>
-          <label>Payment<select id="payment">
-            <option value="credit">Khata (credit)</option>
-            <option value="cash">Cash</option>
-            <option value="unknown">Ask shop</option>
-          </select></label>
-          <div class="total">Total <strong id="draft-total">Rs 0</strong></div>
-          <button id="confirm" class="btn primary">Confirm order</button>
-        </div>
-      </div>
-
-      <div id="done" class="card hidden">
-        <h2>3. Order confirmed <span id="done-id" class="muted"></span></h2>
-        <p class="muted">Copy this reply into the shop's WhatsApp chat.</p>
-        <pre id="reply" class="reply" dir="rtl"></pre>
-        <div class="row">
-          <button id="copy-reply" class="btn">Copy reply</button>
-          <a id="wa-link" class="btn ghost" target="_blank" rel="noopener">Open in WhatsApp</a>
-          <button id="new-order" class="btn primary">New order</button>
+          <div class="order-card">
+            <div class="head"><span>Order #1042</span><span class="pill ok">Added to khata</span></div>
+            <div class="row"><span>2 carton · Shan Biryani Masala</span><b>Rs 19,000</b></div>
+            <div class="row"><span>5 tin · Dalda Ghee 5kg</span><b>Rs 14,750</b></div>
+            <div class="row"><span>Total</span><b>Rs 33,750</b></div>
+          </div>
+          <div class="chat">
+            <div class="bubble out urdu" dir="rtl" lang="ur">آپ کا آرڈر کنفرم ہو گیا ہے۔ کل رقم: 33,750 روپے</div>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="tab-orders" class="panel hidden">
-      <div class="card"><h2>Recent orders</h2><div id="orders" class="table-wrap"></div></div>
-    </section>
-
-    <section id="tab-khata" class="panel hidden">
-      <div class="grid-2">
-        <div class="card"><h2>Shops</h2><div id="shops"></div></div>
-        <div class="card" id="ledger-card"><h2 id="ledger-title">Select a shop</h2><div id="ledger"></div></div>
+    <!-- 2. Features -->
+    <section class="block" id="features" style="padding-top:24px">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Why distributors use it</span>
+          <h2>Built around how Pakistani trade already works</h2>
+          <p>No new app for shopkeepers to learn. They keep sending voice notes; your team stops typing them out.</p>
+        </div>
+        <div class="features">
+          <article class="feature reveal">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg></div>
+            <h3>Understands real voice notes</h3>
+            <p>Urdu, Punjabi, Roman Urdu and English mixed together — including “dedh carton”, “darjan” and “nahi nahi, teen kar dein”.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h12"/><circle cx="19" cy="17" r="2"/></svg></div>
+            <h3>Matches your catalogue</h3>
+            <p>Every item is checked against your products and price list. The AI never invents a price; anything uncertain asks “Did you mean…?”.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-2 1V4z"/><path d="M8 9h6M8 13h4"/></svg></div>
+            <h3>Khata that updates itself</h3>
+            <p>Credit orders and payments land in each shop's ledger automatically, so the balance due is always right.</p>
+          </article>
+          <article class="feature reveal">
+            <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 10h6M9 13.5h4"/></svg></div>
+            <h3>Replies in Urdu</h3>
+            <p>A WhatsApp-ready confirmation with items, total and balance — as text, or read aloud in an Urdu voice.</p>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section id="tab-catalogue" class="panel hidden">
-      <div class="card"><h2>Catalogue <span class="muted">(demo prices)</span></h2><div id="catalogue" class="cat-grid"></div></div>
+    <!-- 3. How it works -->
+    <section class="block" id="how" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="eyebrow">How it works</span>
+          <h2>From voice note to confirmed order in four steps</h2>
+          <p>The AI does the listening and typing. A person stays in control of every order.</p>
+        </div>
+        <div class="steps">
+          <div class="step reveal">
+            <h3>Record or forward</h3>
+            <p>Record in the browser, upload a WhatsApp voice note, or type the order.</p>
+            <span class="urdu" lang="ur" dir="rtl">دو کارٹن شان بریانی، پانچ ٹین ڈالڈا</span>
+          </div>
+          <div class="step reveal">
+            <h3>AI understands it</h3>
+            <p>Whisper turns speech into text; an open LLM extracts items, quantities, payment and shop.</p>
+          </div>
+          <div class="step reveal">
+            <h3>Review in one tap</h3>
+            <p>Prices come from your catalogue. Uncertain items are highlighted with one-tap suggestions.</p>
+          </div>
+          <div class="step reveal">
+            <h3>Confirm and reply</h3>
+            <p>The order is saved, the khata updated, and an Urdu reply is ready to send — text or voice.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <footer class="foot muted">Awaz Order MVP · open models: Whisper large-v3 + Qwen 3.8 / gpt-oss-120b · offline fallback parser</footer>
-  </div>
+    <!-- 4. Architecture -->
+    <section class="block" id="architecture">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Architecture</span>
+          <h2>Open models, a human in the loop, and no single point of failure</h2>
+          <p>Each request flows through the pipeline below. If the AI service is rate-limited, a rule-based parser takes over so orders never stop.</p>
+        </div>
+        <div class="diagram-card reveal">
+          <div class="diagram-scroll">
+            <svg class="diagram" viewBox="0 0 1080 320" role="img" aria-labelledby="diag-title diag-desc">
+              <title id="diag-title">Awaz Order pipeline</title>
+              <desc id="diag-desc">Voice note to Whisper speech-to-text, to an open LLM for order extraction, to catalogue matching, human review, order and khata ledger, and an Urdu reply with optional ElevenLabs voice. If the AI is unavailable, an offline parser feeds catalogue matching. Orders and the ledger are stored in a database.</desc>
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#1d3557"/></marker>
+                <marker id="arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#e07a2f"/></marker>
+                <marker id="arrow-m" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#66738a"/></marker>
+              </defs>
 
-  <div id="toast" class="toast hidden" role="status"></div>
-  <script src="/static/app.js"></script>
+              <!-- flows -->
+              <path class="flow" d="M138 83 H160" marker-end="url(#arrow)"/>
+              <path class="flow" d="M291 83 H313" marker-end="url(#arrow)"/>
+              <path class="flow" d="M444 83 H466" marker-end="url(#arrow)"/>
+              <path class="flow" d="M597 83 H619" marker-end="url(#arrow)"/>
+              <path class="flow" d="M750 83 H772" marker-end="url(#arrow)"/>
+              <path class="flow" d="M903 83 H925" marker-end="url(#arrow)"/>
+              <path class="flow fallback" d="M380 126 V217" marker-end="url(#arrow-a)"/>
+              <path class="flow fallback" d="M533 220 V129" marker-end="url(#arrow-a)"/>
+              <path class="flow store" d="M839 126 V217" marker-start="url(#arrow-m)" marker-end="url(#arrow-m)"/>
+              <text class="lbl" x="392" y="178">if AI is busy</text>
+
+              <!-- main nodes -->
+              <g class="node core"><rect x="10" y="40" width="128" height="86" rx="14"/><text class="t" x="74" y="78" text-anchor="middle">Voice note</text><text class="s" x="74" y="98" text-anchor="middle">Urdu · Punjabi · Eng</text></g>
+              <g class="node ai"><rect x="163" y="40" width="128" height="86" rx="14"/><text class="t" x="227" y="78" text-anchor="middle">Whisper v3</text><text class="s" x="227" y="98" text-anchor="middle">speech → text</text></g>
+              <g class="node ai"><rect x="316" y="40" width="128" height="86" rx="14"/><text class="t" x="380" y="78" text-anchor="middle">Qwen / gpt-oss</text><text class="s" x="380" y="98" text-anchor="middle">text → order JSON</text></g>
+              <g class="node core"><rect x="469" y="40" width="128" height="86" rx="14"/><text class="t" x="533" y="78" text-anchor="middle">Catalogue</text><text class="s" x="533" y="98" text-anchor="middle">match + prices</text></g>
+              <g class="node"><rect x="622" y="40" width="128" height="86" rx="14"/><text class="t" x="686" y="78" text-anchor="middle">Review</text><text class="s" x="686" y="98" text-anchor="middle">“Did you mean…?”</text></g>
+              <g class="node core"><rect x="775" y="40" width="128" height="86" rx="14"/><text class="t" x="839" y="78" text-anchor="middle">Order + khata</text><text class="s" x="839" y="98" text-anchor="middle">ledger updated</text></g>
+              <g class="node ai"><rect x="928" y="40" width="128" height="86" rx="14"/><text class="t" x="992" y="78" text-anchor="middle">Urdu reply</text><text class="s" x="992" y="98" text-anchor="middle">text + ElevenLabs</text></g>
+
+              <!-- lower nodes -->
+              <g class="node alt"><rect x="330" y="220" width="250" height="70" rx="14"/><text class="t" x="455" y="251" text-anchor="middle">Offline parser</text><text class="s" x="455" y="270" text-anchor="middle">rules + RapidFuzz · no API needed</text></g>
+              <g class="node"><rect x="760" y="220" width="158" height="70" rx="14"/><text class="t" x="839" y="251" text-anchor="middle">Database</text><text class="s" x="839" y="270" text-anchor="middle">orders · shops · khata</text></g>
+
+              <!-- travelling data packet -->
+              <circle class="packet" r="6">
+                <animateMotion dur="6s" repeatCount="indefinite" path="M74 83 H992" keyPoints="0;1" keyTimes="0;1" calcMode="linear"/>
+              </circle>
+            </svg>
+          </div>
+          <div class="diagram-notes">
+            <div><b>Open-source models</b>Whisper large-v3 for speech; Qwen 3.8 and gpt-oss for extraction, tried in order across separate rate limits.</div>
+            <div><b>AI understands, code decides</b>Prices, totals and balances always come from the database — the model can't invent a number.</div>
+            <div><b>Designed not to break</b>Cached samples, a model fallback chain and an offline parser keep orders flowing when an API is busy.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="block" style="padding-top:0">
+      <div class="wrap">
+        <div class="cta-band reveal">
+          <div>
+            <h2>Try it with your own voice</h2>
+            <p>Sign in with the demo account <code>demo@awazorder.pk</code> / <code>Demo@1234</code>, record an order in Urdu or Punjabi, and watch it become a confirmed order.</p>
+          </div>
+          <a class="btn lg" href="/login">Open the demo</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <span class="brand" style="font-size:15px"><span class="logo" style="width:24px;height:24px"></span>Awaz Order</span>
+      <span>MVP · Whisper · Qwen · gpt-oss · RapidFuzz · FastAPI</span>
+    </div>
+  </footer>
+
+  <script src="/static/landing.js"></script>
 </body>
 </html>

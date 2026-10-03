@@ -1,72 +1,84 @@
 "use strict";
 
+/* ================================================================ helpers */
+
 const $ = (id) => document.getElementById(id);
-const state = { products: [], shops: [], draft: null, sampleShop: null };
 const MAX_SECONDS = 30;
+const MIN_SECONDS = 1.5;
+const MAX_BYTES = 3 * 1024 * 1024;
+const AUDIO_EXT = ["webm", "ogg", "opus", "m4a", "mp4", "mp3", "mpeg", "mpga", "wav", "flac"];
+const state = { products: [], shops: [], draft: null, status: null, pending: null, lastOrder: null, freshNote: null };
 
-const pkr = (n) => "Rs " + Math.round(n).toLocaleString("en-PK");
+const pkr = (n) => "Rs " + Math.round(n || 0).toLocaleString("en-PK");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const hasUrdu = (s) => /[؀-ۿ]/.test(s || "");
+const fmtSec = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const show = (id, on = true) => $(id).classList.toggle("hidden", !on);
+const ICON = {
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4"/></svg>',
+  text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 14h10"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+};
 
-function toast(msg) {
-  const t = $("toast");
-  t.textContent = msg;
-  t.classList.remove("hidden");
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.add("hidden"), 3000);
+function timeAgo(iso) {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function toast(message, kind = "") {
+  const el = document.createElement("div");
+  el.className = `toast ${kind}`;
+  el.textContent = message;
+  $("toasts").appendChild(el);
+  setTimeout(() => el.remove(), 4200);
 }
 
 async function api(path, options = {}) {
-  const res = await fetch(path, { credentials: "same-origin", ...options });
-  let body = null;
-  try { body = await res.json(); } catch { /* empty body */ }
-  if (res.status === 401 && path !== "/api/login") { showLogin(); throw new Error("Please log in."); }
-  if (!res.ok) throw new Error((body && body.detail && (typeof body.detail === "string" ? body.detail : "Please check the form.")) || `Request failed (${res.status})`);
+  let res;
+  try { res = await fetch(path, { credentials: "same-origin", ...options }); }
+  catch { throw new Error("Can't reach the server. Check your connection and try again."); }
+  if (res.status === 401) { location.href = "/login"; throw new Error("Please sign in."); }
+  const type = res.headers.get("content-type") || "";
+  const body = type.includes("application/json") ? await res.json().catch(() => null) : null;
+  if (!res.ok) {
+    const detail = body && body.detail;
+    throw new Error(typeof detail === "string" ? detail : `Something went wrong (${res.status}). Please try again.`);
+  }
   return body;
 }
 const postJson = (path, data) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 
-/* ---------------------------------------------------------------- auth */
+/* ================================================================ boot + header */
 
-function showLogin() {
-  $("app-view").classList.add("hidden");
-  $("login-view").classList.remove("hidden");
-}
-
-async function showApp(user) {
-  $("login-view").classList.add("hidden");
-  $("app-view").classList.remove("hidden");
+async function boot() {
+  const user = await api("/api/me");
   $("user-name").textContent = user.name;
+  $("avatar").textContent = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const h = new Date().getHours();
+  $("greeting").textContent = `${h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"}, ${user.name.split(" ")[0]}`;
   [state.products, state.shops] = await Promise.all([api("/api/catalogue"), api("/api/shops")]);
-  renderSamples(await api("/api/samples"));
   renderShopSelect();
-  refreshStats();
-  refreshStatus();
+  renderSamples(await api("/api/samples"));
+  renderExamples();
+  buildMeter();
+  await Promise.all([refreshStatus(), refreshStats(), loadNotes()]);
 }
 
-$("fill-demo").onclick = () => { $("email").value = "demo@awazorder.pk"; $("password").value = "Demo@1234"; };
-
-$("login-form").onsubmit = async (e) => {
-  e.preventDefault();
-  $("login-error").textContent = "";
-  try {
-    const user = await postJson("/api/login", { email: $("email").value, password: $("password").value });
-    await showApp(user);
-  } catch (err) { $("login-error").textContent = err.message; }
-};
-
-$("logout").onclick = async () => { await postJson("/api/logout", {}); showLogin(); };
-
-/* ---------------------------------------------------------------- status + stats */
+$("logout").onclick = async () => { await postJson("/api/logout", {}).catch(() => {}); location.href = "/"; };
 
 async function refreshStatus() {
-  const b = $("ai-status");
+  const pill = $("ai-status");
   try {
-    const s = await api("/api/status");
-    const lastFailed = Object.values(s.last || {}).some((x) => !x.ok);
-    if (!s.providers.length) { b.textContent = "Offline mode"; b.className = "badge off"; b.title = "No AI provider configured: rule-based parser in use."; }
-    else if (lastFailed) { b.textContent = "AI: fallback active"; b.className = "badge warn"; b.title = JSON.stringify(s.last); }
-    else { b.textContent = "AI: " + s.providers.join(" → ") + " ✓"; b.className = "badge"; b.title = "Open models via " + s.providers.join(", ") + ", offline parser as last resort"; }
-  } catch { b.textContent = "AI: unknown"; b.className = "badge warn"; }
+    state.status = await api("/api/status");
+    const recent = Object.values(state.status.last || {}).filter((x) => Date.now() / 1000 - x.at < 120);
+    if (!state.status.providers.length) { pill.textContent = "Offline mode"; pill.className = "pill off"; pill.title = "No AI key configured: the rule-based parser handles typed orders."; }
+    else if (recent.length && recent.every((x) => !x.ok)) { pill.textContent = "AI busy · fallback on"; pill.className = "pill warn"; pill.title = "The AI provider is rate-limited; the offline parser is handling orders."; }
+    else { pill.textContent = "AI online"; pill.className = "pill ok"; pill.title = `Open models via ${state.status.providers.join(", ")}${state.status.tts ? " · Urdu voice by ElevenLabs" : ""}`; }
+  } catch { pill.textContent = "AI status unknown"; pill.className = "pill warn"; }
 }
 
 async function refreshStats() {
@@ -74,253 +86,606 @@ async function refreshStats() {
   $("st-orders").textContent = d.orders_today;
   $("st-value").textContent = pkr(d.value_today);
   $("st-out").textContent = pkr(d.outstanding);
+  $("st-notes").textContent = d.voice_notes;
 }
 
-/* ---------------------------------------------------------------- tabs */
-
-document.querySelectorAll(".tab").forEach((tab) => {
+document.querySelectorAll(".app-tabs button").forEach((tab) => {
   tab.onclick = () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.add("hidden"));
-    $("tab-" + tab.dataset.tab).classList.remove("hidden");
-    ({ orders: loadOrders, khata: loadShops, catalogue: renderCatalogue }[tab.dataset.tab] || (() => {}))();
+    document.querySelectorAll(".app-tabs button").forEach((t) => t.classList.toggle("active", t === tab));
+    ["new", "orders", "khata", "catalogue"].forEach((name) => show(`tab-${name}`, name === tab.dataset.tab));
+    ({ orders: loadOrders, khata: () => loadShops(), catalogue: renderCatalogue }[tab.dataset.tab] || (() => {}))();
   };
 });
 
-/* ---------------------------------------------------------------- samples */
+/* ================================================================ input mode switcher */
 
-function renderSamples(samples) {
-  $("samples").innerHTML = samples.map((s) => `
-    <button class="sample" data-id="${esc(s.id)}" data-shop="${esc(s.shop)}">
-      <strong>${esc(s.title)}</strong>
-      <p dir="auto">${esc(s.transcript)}</p>
-    </button>`).join("");
-  document.querySelectorAll(".sample").forEach((el) => {
-    el.onclick = () => runParse(() => postJson(`/api/samples/${el.dataset.id}/parse`, {}), "Processing sample…", el.dataset.shop);
+let mode = "record";
+document.querySelectorAll(".segmented button").forEach((btn) => {
+  btn.onclick = () => {
+    if (recorder && recorder.state === "recording") { toast("Stop the recording first."); return; }
+    mode = btn.dataset.mode;
+    document.querySelectorAll(".segmented button").forEach((b) => b.classList.toggle("active", b === btn));
+    ["record", "upload", "type"].forEach((m) => show(`mode-${m}`, m === mode));
+    clearPending();
+    setCaptureError("");
+  };
+});
+
+function setCaptureError(message) { $("capture-error").textContent = message; }
+
+/* ================================================================ recording with validation */
+
+let recorder = null, stream = null, chunks = [], audioCtx = null, analyser = null, rafId = null;
+let recStart = 0, peak = 0, voicedFrames = 0, totalFrames = 0, tickId = null;
+const BARS = 28;
+
+function buildMeter() { $("meter").innerHTML = "<i></i>".repeat(BARS); }
+
+function pickMime() {
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+}
+
+$("mic").onclick = () => (recorder && recorder.state === "recording" ? stopRecording() : startRecording());
+
+async function startRecording() {
+  setCaptureError("");
+  clearPending();
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    setCaptureError("This browser can't record audio. Upload a voice note or type the order instead.");
+    return;
+  }
+  $("rec-hint").textContent = "Waiting for microphone permission…";
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (err) {
+    resetRecorderUi();
+    setCaptureError(err.name === "NotAllowedError"
+      ? "Microphone access is blocked. Click the lock icon in the address bar, allow the microphone, then try again."
+      : err.name === "NotFoundError" ? "No microphone was found. Connect one, or upload / type the order instead."
+      : "The microphone couldn't be started. Close other apps using it and try again.");
+    return;
+  }
+
+  // Live level meter + silence detection.
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  peak = 0; voicedFrames = 0; totalFrames = 0;
+  const data = new Uint8Array(analyser.fftSize);
+  const bars = $("meter").children;
+  const draw = () => {
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (const v of data) { const x = (v - 128) / 128; sum += x * x; }
+    const rms = Math.sqrt(sum / data.length);
+    peak = Math.max(peak, rms);
+    totalFrames++;
+    if (rms > 0.03) voicedFrames++;
+    for (let i = 0; i < BARS; i++) {
+      const h = Math.min(44, 6 + rms * 260 * (0.55 + 0.45 * Math.sin((i + totalFrames / 3) / 2.2) ** 2));
+      bars[i].style.height = `${h}px`;
+    }
+    rafId = requestAnimationFrame(draw);
+  };
+  draw();
+
+  chunks = [];
+  const mimeType = pickMime();
+  recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = onRecordingStopped;
+  recorder.start(250);
+  recStart = Date.now();
+
+  $("mic").classList.add("recording");
+  $("mic").innerHTML = ICON.stop;
+  $("mic").setAttribute("aria-label", "Stop recording");
+  $("meter").classList.add("live");
+  $("rec-hint").textContent = "Listening… tap the button again when you've finished the order.";
+  tickId = setInterval(() => {
+    const s = (Date.now() - recStart) / 1000;
+    $("rec-time").innerHTML = `${fmtSec(s)} <small>/ 0:30</small>`;
+    $("rec-bar").style.width = `${Math.min(100, (s / MAX_SECONDS) * 100)}%`;
+    if (s >= MAX_SECONDS) { toast("Stopped at the 30-second limit."); stopRecording(); }
+  }, 200);
+}
+
+function stopRecording() {
+  if (recorder && recorder.state === "recording") recorder.stop();
+}
+
+function teardownAudio() {
+  clearInterval(tickId);
+  cancelAnimationFrame(rafId);
+  stream?.getTracks().forEach((t) => t.stop());
+  audioCtx?.close().catch(() => {});
+  stream = null; audioCtx = null;
+}
+
+function resetRecorderUi() {
+  $("mic").classList.remove("recording");
+  $("mic").innerHTML = ICON.mic;
+  $("mic").setAttribute("aria-label", "Start recording");
+  $("meter").classList.remove("live");
+  [...$("meter").children].forEach((b) => (b.style.height = "6px"));
+  $("rec-time").innerHTML = "0:00 <small>/ 0:30</small>";
+  $("rec-bar").style.width = "0";
+  $("rec-hint").innerHTML = 'Tap the mic and say the order, e.g. <span lang="ur" class="urdu">“دو کارٹن شان بریانی، پانچ ٹین ڈالڈا، ادھار لکھ دیں”</span>';
+}
+
+function onRecordingStopped() {
+  const duration = (Date.now() - recStart) / 1000;
+  const voicedRatio = totalFrames ? voicedFrames / totalFrames : 0;
+  teardownAudio();
+  resetRecorderUi();
+  const type = recorder.mimeType || "audio/webm";
+  const blob = new Blob(chunks, { type });
+
+  if (duration < MIN_SECONDS) { setCaptureError("That was too short. Hold on and say the full order (at least a couple of seconds)."); return; }
+  if (peak < 0.02 || voicedRatio < 0.04) { setCaptureError("We couldn't hear anything. Check the right microphone is selected and speak a little closer."); return; }
+  if (blob.size > MAX_BYTES) { setCaptureError("The recording is too large. Please keep it under 30 seconds."); return; }
+
+  const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+  setPending({ blob, name: `voice-note.${ext}`, duration, label: `Recorded ${fmtSec(duration)}` });
+}
+
+/* ================================================================ upload with validation */
+
+const dz = $("dropzone");
+$("file").onchange = (e) => { const f = e.target.files[0]; if (f) acceptFile(f); e.target.value = ""; };
+["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
+dz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) acceptFile(f); });
+
+function audioDuration(blob) {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    const url = URL.createObjectURL(blob);
+    a.preload = "metadata";
+    a.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(Number.isFinite(a.duration) ? a.duration : null); };
+    a.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    a.src = url;
   });
 }
 
-/* ---------------------------------------------------------------- input: record / upload / type */
-
-let recorder = null, chunks = [], recTimer = null, recStart = 0;
-
-$("rec-btn").onclick = async () => {
-  if (recorder && recorder.state === "recording") { recorder.stop(); return; }
-  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast("Recording isn't supported in this browser. Upload a file or type the order."); return; }
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { toast("Microphone permission denied. Upload a file or type the order instead."); return; }
-  chunks = [];
-  recorder = new MediaRecorder(stream);
-  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-  recorder.onstop = () => {
-    stream.getTracks().forEach((t) => t.stop());
-    clearInterval(recTimer);
-    $("rec-btn").classList.remove("recording");
-    $("rec-label").textContent = "Tap to record";
-    const type = recorder.mimeType || "audio/webm";
-    const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
-    sendAudio(new Blob(chunks, { type }), `voice-note.${ext}`);
-  };
-  recorder.start();
-  recStart = Date.now();
-  $("rec-btn").classList.add("recording");
-  $("rec-label").textContent = "Recording… tap to stop";
-  recTimer = setInterval(() => {
-    const s = Math.floor((Date.now() - recStart) / 1000);
-    $("rec-timer").textContent = `0:${String(s).padStart(2, "0")} / 0:30`;
-    if (s >= MAX_SECONDS) recorder.stop();
-  }, 250);
-};
-
-$("audio-file").onchange = (e) => {
-  const file = e.target.files[0];
-  if (file) sendAudio(file, file.name);
-  e.target.value = "";
-};
-
-function sendAudio(blob, name) {
-  const form = new FormData();
-  form.append("file", blob, name);
-  runParse(() => api("/api/parse/audio", { method: "POST", body: form }), "Listening to the voice note…");
+async function acceptFile(file) {
+  setCaptureError("");
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (!AUDIO_EXT.includes(ext) && !file.type.startsWith("audio/")) { setCaptureError("That isn't an audio file. Choose a voice note (.opus, .ogg, .m4a, .mp3, .wav or .webm)."); return; }
+  if (file.size < 2048) { setCaptureError("That file is empty or too short."); return; }
+  if (file.size > MAX_BYTES) { setCaptureError(`That file is ${(file.size / 1048576).toFixed(1)} MB. The limit is 3 MB (about 30 seconds).`); return; }
+  const duration = await audioDuration(file);
+  if (duration !== null && duration > MAX_SECONDS + 1) { setCaptureError(`That voice note is ${fmtSec(duration)} long. Please use one under 30 seconds.`); return; }
+  if (duration !== null && duration < 1) { setCaptureError("That voice note is too short to contain an order."); return; }
+  setPending({ blob: file, name: file.name, duration, label: `${file.name}${duration ? ` · ${fmtSec(duration)}` : ""}` });
 }
+
+/* ================================================================ pending audio preview */
+
+function setPending(p) {
+  clearPending();
+  state.pending = { ...p, url: URL.createObjectURL(p.blob) };
+  $("preview-audio").src = state.pending.url;
+  $("preview-meta").textContent = `${p.label} · listen back, then process it.`;
+  show("preview", true);
+  if (mode === "record") show("rec-idle", false);
+  if (mode === "upload") show("mode-upload", false);
+}
+
+function clearPending() {
+  if (state.pending?.url && state.pending.url !== state.draftAudioUrl) URL.revokeObjectURL(state.pending.url);
+  state.pending = null;
+  $("preview-audio").removeAttribute("src");
+  show("preview", false);
+  show("rec-idle", true);
+  if (mode === "upload") show("mode-upload", true);
+}
+
+$("discard").onclick = () => { clearPending(); setCaptureError(""); };
+
+$("process-audio").onclick = () => {
+  const p = state.pending;
+  if (!p) return;
+  const form = new FormData();
+  form.append("file", p.blob, p.name.replace(/\.opus$/i, ".ogg"));
+  if (p.duration) form.append("duration", String(p.duration.toFixed(2)));
+  state.draftAudioUrl = p.url;
+  runParse(() => api("/api/parse/audio", { method: "POST", body: form }), "audio");
+};
+
+/* ================================================================ typed orders */
+
+const EXAMPLES = [
+  "3 carton Pepsi, 2 carton Sprite, cash",
+  "dedh carton Dalda oil aur 2 bori cheeni, udhaar likh do",
+  "پانچ پیکٹ ٹپال دانےدار اور دو کارٹن ملک پیک",
+  "4 carton Surf Excel, 1 carton Lifebuoy, khata mein",
+];
+
+function renderExamples() {
+  $("examples").innerHTML = EXAMPLES.map((e, i) => `<button class="chip" data-i="${i}" dir="auto">${esc(e)}</button>`).join("");
+  document.querySelectorAll("#examples .chip").forEach((c) => (c.onclick = () => { $("order-text").value = EXAMPLES[c.dataset.i]; updateCount(); }));
+}
+const updateCount = () => ($("char-count").textContent = $("order-text").value.length);
+$("order-text").addEventListener("input", updateCount);
 
 $("parse-text").onclick = () => {
   const text = $("order-text").value.trim();
-  if (text.length < 3) { toast("Type an order first."); return; }
-  runParse(() => postJson("/api/parse/text", { text }), "Reading the order…");
+  if (text.length < 5) { setCaptureError("Type the order first, e.g. “2 carton Pepsi, 5 tin Dalda”."); return; }
+  if (!/[\p{L}]/u.test(text)) { setCaptureError("The order needs product names, not just numbers."); return; }
+  setCaptureError("");
+  state.draftAudioUrl = null;
+  runParse(() => postJson("/api/parse/text", { text }), "text");
 };
 
-async function runParse(call, busyText, sampleShop = null) {
-  $("parse-error").classList.add("hidden");
-  $("draft").classList.add("hidden");
-  $("done").classList.add("hidden");
-  $("busy-text").textContent = busyText;
-  $("busy").classList.remove("hidden");
+/* ================================================================ processing */
+
+const STEPS = {
+  audio: ["Uploading the voice note", "Transcribing with Whisper", "Extracting items with AI", "Matching your catalogue"],
+  text: ["Reading the order", "Extracting items with AI", "Matching your catalogue"],
+  sample: ["Opening the sample order"],
+  note: ["Opening your voice note"],
+};
+
+async function runParse(call, kind, sampleShop = null) {
+  setCaptureError("");
+  show("review", false); show("done", false);
+  const steps = STEPS[kind];
+  $("steps").innerHTML = steps.map((s) => `<li><span class="dot"></span>${esc(s)}</li>`).join("");
+  const items = [...$("steps").children];
+  let i = 0;
+  const advance = () => { items.forEach((li, j) => { li.classList.toggle("done", j < i); li.classList.toggle("active", j === i); }); };
+  advance();
+  const timer = setInterval(() => { if (i < steps.length - 1) { i++; advance(); } }, kind === "audio" ? 900 : 700);
+  show("processing", true);
+  $("processing").scrollIntoView({ behavior: "smooth", block: "center" });
   try {
     const draft = await call();
-    state.sampleShop = sampleShop;
-    renderDraft(draft);
+    clearInterval(timer);
+    i = steps.length; advance();
+    await new Promise((r) => setTimeout(r, 250));
+    show("processing", false);
+    if (kind === "audio" || kind === "text") {
+      clearPending();
+      if (kind === "text") { $("order-text").value = ""; updateCount(); }
+      state.freshNote = draft.note_id;
+      loadNotes();
+      refreshStats();
+    }
+    renderDraft(draft, kind, sampleShop);
   } catch (err) {
-    $("parse-error").textContent = err.message;
-    $("parse-error").classList.remove("hidden");
+    clearInterval(timer);
+    show("processing", false);
+    setCaptureError(err.message);
+    $("capture").scrollIntoView({ behavior: "smooth", block: "start" });
   } finally {
-    $("busy").classList.add("hidden");
     refreshStatus();
   }
 }
 
-/* ---------------------------------------------------------------- draft review */
+/* ================================================================ review */
 
-function modeLabel(d) {
-  if (d.mode === "cached") return ["Cached sample · AI-processed", "badge"];
-  if (d.mode === "ai") return [`AI · ${d.asr_provider ? "Whisper + " : ""}${(d.provider || "").split(":").pop()}`, "badge"];
-  return [d.ai_error ? "Offline fallback (AI unavailable)" : "Offline rule-based parser", "badge warn"];
+function modeBadge(d) {
+  if (d.reopened) return ["Reopened from history", "pill plain"];
+  if (d.mode === "cached") return ["Sample · AI-processed", "pill"];
+  if (d.mode === "ai") {
+    const model = (d.provider || "").split(":").pop();
+    return [`AI · ${d.asr_provider ? "Whisper + " : ""}${model}`, "pill ok"];
+  }
+  return [d.ai_error ? "AI busy · offline parser used" : "Offline parser", "pill warn"];
 }
 
-function renderDraft(d) {
+function renderDraft(d, kind, sampleShop) {
   state.draft = {
     transcript: d.transcript,
-    source: d.asr_provider ? "voice" : d.mode === "cached" || d.mode === "offline" && state.sampleShop ? "sample" : "text",
-    lines: d.lines.map((l) => ({ ...l })),
+    note_id: d.note_id || null,
+    source: kind === "sample" ? "sample" : (d.asr_provider || kind === "audio" || (kind === "note" && d.asr_provider)) ? "voice" : "text",
+    lines: (d.lines || []).map((l) => ({ ...l })),
   };
-  const [label, cls] = modeLabel(d);
+  const [label, cls] = modeBadge(d);
   $("mode-badge").textContent = label;
   $("mode-badge").className = cls;
   $("transcript").textContent = d.transcript;
+  $("transcript").className = hasUrdu(d.transcript) ? "urdu" : "";
+
+  const audio = $("review-audio");
+  const audioUrl = kind === "audio" ? state.draftAudioUrl : kind === "note" && d.has_audio ? `/api/notes/${d.note_id}/audio` : null;
+  if (audioUrl) { audio.src = audioUrl; show("review-audio", true); } else { audio.removeAttribute("src"); show("review-audio", false); }
+
   const um = d.unmatched || [];
-  $("unmatched").classList.toggle("hidden", !um.length);
-  $("unmatched").textContent = um.length ? "Not in catalogue: " + um.join(", ") : "";
-  $("payment").value = d.payment === "unknown" ? "unknown" : d.payment;
+  show("unmatched", um.length > 0);
+  $("unmatched").textContent = um.length ? `Not in your catalogue: ${um.join(", ")}. Add the right product below if needed.` : "";
+  $("payment").value = ["credit", "cash"].includes(d.payment) ? d.payment : "unknown";
 
   let shopId = d.shop_id;
-  if (!shopId && state.sampleShop) shopId = state.shops.find((s) => s.name === state.sampleShop)?.id;
+  if (!shopId && sampleShop) shopId = state.shops.find((s) => s.name === sampleShop)?.id;
   $("shop").value = shopId || "";
+  $("review-error").textContent = "";
 
   renderLines();
-  $("draft").classList.remove("hidden");
-  $("draft").scrollIntoView({ behavior: "smooth", block: "start" });
+  show("review", true);
+  $("review").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function productOptions(selected) {
-  return state.products.map((p) => `<option value="${esc(p.sku)}" ${p.sku === selected ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-}
+const productOptions = (selected) => state.products.map((p) => `<option value="${esc(p.sku)}"${p.sku === selected ? " selected" : ""}>${esc(p.name)}</option>`).join("");
 
 function renderLines() {
   const by = Object.fromEntries(state.products.map((p) => [p.sku, p]));
-  const rows = state.draft.lines.map((l, i) => {
+  const lines = state.draft.lines;
+  show("no-items", lines.length === 0);
+  $("lines").innerHTML = lines.map((l, i) => {
     const p = by[l.sku];
-    const total = p.price * l.quantity;
-    const alts = (l.alternatives || []).map((a) => `<button class="chip" data-i="${i}" data-sku="${esc(a.sku)}">${esc(a.name)}?</button>`).join("");
-    return `<tr class="${l.needs_review ? "review" : ""}">
-      <td><select data-i="${i}" class="sku">${productOptions(l.sku)}</select>
-        ${l.spoken ? `<div class="conf" dir="auto">heard: “${esc(l.spoken)}”${l.confidence != null ? ` · ${Math.round(l.confidence * 100)}% sure` : ""}</div>` : ""}
-        ${alts ? `<div class="chips">Did you mean ${alts}</div>` : ""}</td>
-      <td><input type="number" min="0.5" step="0.5" value="${l.quantity}" data-i="${i}" class="qty" /></td>
-      <td>${esc(p.unit)}</td><td>${pkr(p.price)}</td><td><strong>${pkr(total)}</strong></td>
-      <td><button class="x" data-i="${i}" aria-label="Remove item">×</button></td></tr>`;
-  });
-  $("lines").innerHTML = rows.join("") || `<tr><td colspan="6" class="muted">No items recognised. Add them manually.</td></tr>`;
-  $("draft-total").textContent = pkr(state.draft.lines.reduce((s, l) => s + by[l.sku].price * l.quantity, 0));
+    const conf = l.confidence != null ? Math.round(l.confidence * 100) : null;
+    const alts = (l.alternatives || []).map((a) => `<button class="alt" data-i="${i}" data-sku="${esc(a.sku)}">${esc(a.name)}</button>`).join("");
+    return `<tr class="${l.needs_review ? "review-row" : ""}">
+      <td><select class="sku" data-i="${i}" aria-label="Product">${productOptions(l.sku)}</select>
+        ${l.spoken ? `<div class="heard">Heard: <span dir="auto">“${esc(l.spoken)}”</span>${conf !== null ? `<span class="conf ${conf < 75 ? "low" : ""}">${conf}%</span>` : ""}</div>` : ""}
+        ${alts ? `<div class="alts">Did you mean ${alts}</div>` : ""}</td>
+      <td><input type="number" class="qty" data-i="${i}" min="0.5" max="10000" step="0.5" value="${l.quantity}" aria-label="Quantity" /></td>
+      <td>${esc(p.unit)}</td>
+      <td>${pkr(p.price)}</td>
+      <td><strong>${pkr(p.price * l.quantity)}</strong></td>
+      <td><button class="icon-btn rm" data-i="${i}" aria-label="Remove ${esc(p.name)}">${ICON.trash}</button></td>
+    </tr>`;
+  }).join("");
+  $("draft-total").textContent = pkr(lines.reduce((s, l) => s + by[l.sku].price * l.quantity, 0));
 
-  document.querySelectorAll("#lines .sku").forEach((el) => el.onchange = () => { const l = state.draft.lines[el.dataset.i]; l.sku = el.value; l.needs_review = false; l.alternatives = []; renderLines(); });
-  document.querySelectorAll("#lines .qty").forEach((el) => el.onchange = () => { state.draft.lines[el.dataset.i].quantity = Math.max(0.5, Number(el.value) || 1); renderLines(); });
-  document.querySelectorAll("#lines .x").forEach((el) => el.onclick = () => { state.draft.lines.splice(el.dataset.i, 1); renderLines(); });
-  document.querySelectorAll("#lines .chip").forEach((el) => el.onclick = () => { const l = state.draft.lines[el.dataset.i]; l.sku = el.dataset.sku; l.needs_review = false; l.alternatives = []; renderLines(); });
+  const resolve = (l) => { l.needs_review = false; l.alternatives = []; };
+  document.querySelectorAll("#lines .sku").forEach((el) => (el.onchange = () => { const l = lines[el.dataset.i]; l.sku = el.value; resolve(l); renderLines(); }));
+  document.querySelectorAll("#lines .qty").forEach((el) => (el.onchange = () => {
+    const v = Number(el.value);
+    lines[el.dataset.i].quantity = Number.isFinite(v) && v > 0 ? Math.min(v, 10000) : 1;
+    renderLines();
+  }));
+  document.querySelectorAll("#lines .rm").forEach((el) => (el.onclick = () => { lines.splice(el.dataset.i, 1); renderLines(); }));
+  document.querySelectorAll("#lines .alt").forEach((el) => (el.onclick = () => { const l = lines[el.dataset.i]; l.sku = el.dataset.sku; resolve(l); renderLines(); }));
 }
 
 $("add-line").onclick = () => {
   state.draft.lines.push({ sku: state.products[0].sku, quantity: 1, spoken: "", alternatives: [] });
   renderLines();
+  const selects = document.querySelectorAll("#lines .sku");
+  selects[selects.length - 1]?.focus();
 };
 
 function renderShopSelect() {
-  $("shop").innerHTML = `<option value="">Select shop…</option>` + state.shops.map((s) => `<option value="${s.id}">${esc(s.name)} — ${esc(s.area)}</option>`).join("");
+  $("shop").innerHTML = `<option value="">Choose shop…</option>` + state.shops.map((s) => `<option value="${s.id}">${esc(s.name)} — ${esc(s.area)}</option>`).join("");
 }
 
 $("confirm").onclick = async () => {
+  const err = $("review-error");
+  err.textContent = "";
   const shopId = Number($("shop").value);
-  if (!shopId) { toast("Select the shop first."); return; }
-  if (!state.draft.lines.length) { toast("Add at least one item."); return; }
-  if (state.draft.lines.some((l) => l.needs_review) && !confirm("Some items are marked uncertain (highlighted). Confirm anyway?")) return;
-  $("confirm").disabled = true;
+  if (!shopId) { err.textContent = "Choose which shop this order is for."; $("shop").focus(); return; }
+  if (!state.draft.lines.length) { err.textContent = "Add at least one item before confirming."; return; }
+  const uncertain = state.draft.lines.filter((l) => l.needs_review).length;
+  if (uncertain && !confirm(`${uncertain} item${uncertain > 1 ? "s are" : " is"} still highlighted as uncertain. Confirm the order anyway?`)) return;
+
+  const btn = $("confirm");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Confirming…';
   try {
     const res = await postJson("/api/orders", {
       shop_id: shopId,
       payment: $("payment").value,
       transcript: state.draft.transcript,
       source: state.draft.source,
+      note_id: state.draft.note_id,
       lines: state.draft.lines.map((l) => ({ sku: l.sku, quantity: l.quantity, spoken: l.spoken || "" })),
     });
-    $("draft").classList.add("hidden");
-    $("done-id").textContent = `#${res.id} · ${res.shop}`;
-    $("reply").textContent = res.reply;
-    const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
-    $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
-    $("done").classList.remove("hidden");
-    $("done").scrollIntoView({ behavior: "smooth" });
+    state.lastOrder = res;
+    showDone(res);
     state.shops = await api("/api/shops");
     refreshStats();
-  } catch (err) { toast(err.message); }
-  finally { $("confirm").disabled = false; }
+    loadNotes();
+  } catch (e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Confirm order";
+  }
 };
 
+/* ================================================================ done + Urdu voice */
+
+function showDone(res) {
+  show("review", false);
+  $("done-title").textContent = `Order #${res.id} confirmed`;
+  $("done-sub").textContent = `${res.shop} · ${pkr(res.total)}${$("payment").value === "credit" ? ` · khata balance ${pkr(res.balance)}` : ""}`;
+  $("reply").textContent = res.reply;
+  const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
+  $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
+  $("tts-audio").removeAttribute("src");
+  show("tts-audio", false);
+  $("tts-hint").textContent = state.status?.tts ? "" : urduBrowserVoice()
+    ? "Using your browser's Urdu voice. Add an ElevenLabs key for a natural voice."
+    : "Add ELEVENLABS_API_KEY to the server's .env to hear this reply in a natural Urdu voice.";
+  show("done", true);
+  $("done").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function urduBrowserVoice() {
+  return (window.speechSynthesis?.getVoices() || []).find((v) => v.lang.toLowerCase().startsWith("ur"));
+}
+
+async function playOrderVoice(orderId, button, audioEl) {
+  if (state.status?.tts) {
+    const original = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span> Generating Urdu voice…';
+    try {
+      const res = await fetch(`/api/orders/${orderId}/speech`, { credentials: "same-origin" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "The voice service is unavailable right now.");
+      }
+      const url = URL.createObjectURL(await res.blob());
+      audioEl.src = audioEl.dataset.url = url;
+      audioEl.classList.remove("hidden");
+      await audioEl.play().catch(() => {});
+    } catch (e) {
+      toast(e.message, "error");
+    } finally {
+      button.disabled = false;
+      button.innerHTML = original;
+    }
+    return;
+  }
+  const voice = urduBrowserVoice();
+  if (voice) {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance($("reply").textContent);
+    u.voice = voice; u.lang = voice.lang;
+    speechSynthesis.speak(u);
+    return;
+  }
+  toast("Urdu voice isn't set up yet: add ELEVENLABS_API_KEY to the server's .env.", "error");
+}
+
+$("listen").onclick = () => state.lastOrder && playOrderVoice(state.lastOrder.id, $("listen"), $("tts-audio"));
+
 $("copy-reply").onclick = async () => {
-  try { await navigator.clipboard.writeText($("reply").textContent); toast("Reply copied"); }
-  catch { toast("Select the text and copy it manually."); }
+  try { await navigator.clipboard.writeText($("reply").textContent); toast("Reply copied to clipboard", "success"); }
+  catch { toast("Couldn't copy automatically. Select the text and copy it.", "error"); }
 };
 
 $("new-order").onclick = () => {
-  $("done").classList.add("hidden");
-  $("order-text").value = "";
+  show("done", false);
+  clearPending();
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-/* ---------------------------------------------------------------- orders, khata, catalogue */
+/* ================================================================ notes history */
+
+async function loadNotes() {
+  const notes = await api("/api/notes");
+  if (!notes.length) {
+    $("notes").innerHTML = `<div class="empty">No voice notes yet.<br>Record one on the left — it will appear here.</div>`;
+    return;
+  }
+  $("notes").innerHTML = notes.map((n) => `
+    <article class="note ${n.id === state.freshNote ? "fresh" : ""}" data-id="${n.id}">
+      <div class="note-top">
+        <span class="note-kind">${n.kind === "voice" ? ICON.mic : ICON.text}${n.kind === "voice" ? `Voice${n.duration ? ` · ${fmtSec(n.duration)}` : ""}` : "Typed"}</span>
+        <span>${timeAgo(n.created_at)}</span>
+      </div>
+      <p class="note-text ${hasUrdu(n.transcript) ? "urdu" : ""}" dir="auto">${esc(n.transcript)}</p>
+      <div class="note-top">
+        <span>${n.items} item${n.items === 1 ? "" : "s"} · ${pkr(n.total)}</span>
+        ${n.order_id ? `<span class="pill ok">Order #${n.order_id}</span>` : `<span class="pill plain">Draft</span>`}
+      </div>
+      <div class="note-actions">
+        ${n.has_audio ? `<button class="btn sm play" data-id="${n.id}">▶ Play</button>` : ""}
+        <button class="btn sm open" data-id="${n.id}">${n.order_id ? "Reorder" : "Open"}</button>
+        <button class="icon-btn del" data-id="${n.id}" aria-label="Delete note">${ICON.trash}</button>
+      </div>
+    </article>`).join("");
+
+  document.querySelectorAll("#notes .play").forEach((b) => (b.onclick = () => {
+    const actions = b.parentElement;
+    let audio = actions.querySelector("audio");
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = `/api/notes/${b.dataset.id}/audio`;
+      audio.onerror = () => toast("This recording is no longer stored on the demo server.", "error");
+      actions.prepend(audio);
+      b.remove();
+      audio.play().catch(() => {});
+    }
+  }));
+  document.querySelectorAll("#notes .open").forEach((b) => (b.onclick = async () => {
+    const meta = notes.find((n) => n.id === Number(b.dataset.id));
+    runParse(async () => ({ ...(await api(`/api/notes/${b.dataset.id}`)), has_audio: meta?.has_audio }), "note");
+  }));
+  document.querySelectorAll("#notes .del").forEach((b) => (b.onclick = async () => {
+    if (!confirm("Delete this voice note from your history?")) return;
+    await api(`/api/notes/${b.dataset.id}`, { method: "DELETE" });
+    toast("Voice note deleted");
+    loadNotes(); refreshStats();
+  }));
+}
+
+/* ================================================================ samples */
+
+function renderSamples(samples) {
+  $("samples").innerHTML = samples.map((s) => `
+    <button class="sample" data-id="${esc(s.id)}" data-shop="${esc(s.shop)}">
+      <strong>${esc(s.title)}</strong><span dir="auto">${esc(s.transcript)}</span>
+    </button>`).join("");
+  document.querySelectorAll(".sample").forEach((el) => (el.onclick = () => {
+    state.draftAudioUrl = null;
+    runParse(() => postJson(`/api/samples/${el.dataset.id}/parse`, {}), "sample", el.dataset.shop);
+  }));
+}
+
+/* ================================================================ orders, khata, catalogue */
 
 async function loadOrders() {
   const orders = await api("/api/orders");
-  $("orders").innerHTML = orders.length ? `<table><thead><tr><th>#</th><th>Shop</th><th>Items</th><th>Payment</th><th>Total</th><th>Source</th></tr></thead><tbody>${
-    orders.map((o) => `<tr><td>${o.id}</td><td>${esc(o.shop)}</td><td>${o.lines.map((l) => `${l.quantity} × ${esc(l.name)}`).join("<br>")}</td>
-      <td>${o.payment === "credit" ? "Khata" : o.payment === "cash" ? "Cash" : "—"}</td><td><strong>${pkr(o.total)}</strong></td><td>${esc(o.source)}</td></tr>`).join("")
-  }</tbody></table>` : `<p class="muted">No orders yet. Confirm one from the New order tab.</p>`;
+  if (!orders.length) { $("orders").innerHTML = `<div class="empty">No orders yet. Confirm one from the New order tab.</div>`; return; }
+  $("orders").innerHTML = `<table><thead><tr><th>#</th><th>Shop</th><th>Items</th><th>Payment</th><th>Total</th><th>Source</th><th>Date</th></tr></thead><tbody>${
+    orders.map((o) => `<tr>
+      <td><strong>${o.id}</strong></td><td>${esc(o.shop)}</td>
+      <td>${o.lines.map((l) => `${l.quantity} × ${esc(l.name)}`).join("<br>")}</td>
+      <td>${o.payment === "credit" ? '<span class="pill">Khata</span>' : o.payment === "cash" ? '<span class="pill ok">Cash</span>' : '<span class="pill plain">Ask</span>'}</td>
+      <td><strong>${pkr(o.total)}</strong></td><td>${esc(o.source)}</td><td class="muted">${timeAgo(o.created_at)}</td>
+    </tr>`).join("")}</tbody></table>`;
 }
 
 async function loadShops(selectId) {
   state.shops = await api("/api/shops");
-  $("shops").innerHTML = state.shops.map((s) => `<div class="shop" data-id="${s.id}">
-    <div><strong>${esc(s.name)}</strong><small>${esc(s.area)} · ${esc(s.phone)}</small></div>
-    <div class="owed ${s.balance <= 0 ? "zero" : ""}">${pkr(s.balance)}</div></div>`).join("");
-  document.querySelectorAll(".shop").forEach((el) => el.onclick = () => openLedger(Number(el.dataset.id)));
+  renderShopSelect();
+  $("shops").innerHTML = state.shops.map((s) => `
+    <button class="shop-row" data-id="${s.id}">
+      <span><strong>${esc(s.name)}</strong><small>${esc(s.area)} · ${esc(s.phone)}</small></span>
+      <span class="owed ${s.balance <= 0 ? "zero" : ""}">${pkr(s.balance)}</span>
+    </button>`).join("");
+  document.querySelectorAll(".shop-row").forEach((el) => (el.onclick = () => openLedger(Number(el.dataset.id))));
   if (selectId) openLedger(selectId);
 }
 
 async function openLedger(shopId) {
-  document.querySelectorAll(".shop").forEach((el) => el.classList.toggle("active", Number(el.dataset.id) === shopId));
+  document.querySelectorAll(".shop-row").forEach((el) => el.classList.toggle("active", Number(el.dataset.id) === shopId));
   const shop = state.shops.find((s) => s.id === shopId);
   const entries = await api(`/api/shops/${shopId}/ledger`);
-  $("ledger-title").textContent = `${shop.name}: ${pkr(shop.balance)} owed`;
-  const kind = { opening: "Opening balance", credit_order: "Order on khata", payment: "Payment" };
-  $("ledger").innerHTML = `${entries.length ? `<table><thead><tr><th>Date</th><th>Entry</th><th>Amount</th></tr></thead><tbody>${
-    entries.map((e) => `<tr><td>${esc(e.created_at.slice(0, 10))}</td><td>${esc(kind[e.kind] || e.kind)}<br><small class="muted">${esc(e.note)}</small></td>
-      <td class="${e.amount < 0 ? "neg" : ""}">${e.amount < 0 ? "−" : "+"}${pkr(Math.abs(e.amount))}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">No entries.</p>`}
-    <form class="pay-form" id="pay-form"><input type="number" min="1" placeholder="Payment received (Rs)" id="pay-amount" required /><button class="btn primary">Record payment</button></form>`;
+  $("ledger-title").textContent = shop.name;
+  $("ledger-sub").textContent = `${pkr(shop.balance)} currently owed`;
+  const kind = { opening: "Opening balance", credit_order: "Order on khata", payment: "Payment received" };
+  $("ledger").innerHTML = `${entries.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Entry</th><th style="text-align:right">Amount</th></tr></thead><tbody>${
+    entries.map((e) => `<tr><td class="muted">${esc(e.created_at.slice(0, 10))}</td><td>${esc(kind[e.kind] || e.kind)}<br><small class="muted">${esc(e.note)}</small></td>
+      <td style="text-align:right" class="${e.amount < 0 ? "amount-neg" : "amount-pos"}">${e.amount < 0 ? "−" : "+"}${pkr(Math.abs(e.amount))}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">No entries yet.</div>`}
+    <form class="pay-form" id="pay-form" novalidate>
+      <input type="number" id="pay-amount" min="1" step="1" placeholder="Payment received (Rs)" aria-label="Payment amount" />
+      <button class="btn primary">Record payment</button>
+    </form>`;
   $("pay-form").onsubmit = async (e) => {
     e.preventDefault();
+    const amount = Math.round(Number($("pay-amount").value));
+    if (!amount || amount < 1) { toast("Enter the amount received.", "error"); return; }
+    if (amount > shop.balance && shop.balance > 0 && !confirm(`That's more than the ${pkr(shop.balance)} owed. Record it anyway?`)) return;
     try {
-      await postJson(`/api/shops/${shopId}/payments`, { amount: Number($("pay-amount").value) });
-      toast("Payment recorded");
+      await postJson(`/api/shops/${shopId}/payments`, { amount });
+      toast(`Payment of ${pkr(amount)} recorded`, "success");
       await loadShops(shopId);
       refreshStats();
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message, "error"); }
   };
 }
 
 function renderCatalogue() {
-  $("catalogue").innerHTML = state.products.map((p) => `<div class="cat"><strong>${esc(p.name)}</strong>
-    <span>${pkr(p.price)} / ${esc(p.unit)}</span><small dir="auto">${esc(p.aliases.join(" · "))}</small></div>`).join("");
+  const q = $("cat-search").value.trim().toLowerCase();
+  const items = state.products.filter((p) => !q || p.name.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q)));
+  $("catalogue").innerHTML = items.length ? items.map((p) => `
+    <div class="cat-item"><strong>${esc(p.name)}</strong>
+      <span class="price">${pkr(p.price)} <small>/ ${esc(p.unit)}</small></span>
+      <small dir="auto">${esc(p.aliases.join(" · "))}</small></div>`).join("") : `<div class="empty">No products match “${esc(q)}”.</div>`;
 }
+$("cat-search").addEventListener("input", renderCatalogue);
 
-/* ---------------------------------------------------------------- boot */
+/* ================================================================ go */
 
-api("/api/me").then(showApp).catch(showLogin);
+if (window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {};
+boot().catch((e) => toast(e.message, "error"));

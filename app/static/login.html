@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — Awaz Order</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d3557'/%3E%3Cpath d='M9 13v6M13 9v14M17 11.5v9M21 14v4' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="auth">
+    <aside class="auth-side">
+      <a class="brand" href="/"><span class="logo"></span>Awaz Order</a>
+      <div>
+        <h2>Every voice note becomes a priced order and a khata entry.</h2>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Record or upload Urdu and Punjabi voice notes</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Review AI-extracted items with “Did you mean…?” suggestions</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Confirm, update the khata and send an Urdu reply</li>
+        </ul>
+      </div>
+      <p class="quote">Demo data only: shops, products and prices are illustrative.</p>
+      <span class="rings" aria-hidden="true"></span>
+    </aside>
+
+    <main class="auth-main">
+      <form class="auth-form" id="login-form" novalidate>
+        <div>
+          <h1>Sign in</h1>
+          <p class="muted" style="margin-top:6px">Welcome back. Use the demo account to explore.</p>
+        </div>
+
+        <div class="alert error" id="form-error" role="alert"></div>
+
+        <label class="field">
+          <span>Email</span>
+          <input id="email" type="email" autocomplete="username" placeholder="you@business.pk" required />
+          <small class="field-error" id="email-error"></small>
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <div class="pw-wrap">
+            <input id="password" type="password" autocomplete="current-password" placeholder="Your password" required />
+            <button type="button" class="btn ghost sm pw-toggle" id="pw-toggle" aria-label="Show password">Show</button>
+          </div>
+          <small class="field-error" id="password-error"></small>
+        </label>
+
+        <button class="btn primary lg" type="submit" id="submit">Sign in</button>
+
+        <div class="demo-box">
+          <div>
+            <small>Demo account</small>
+            <code>demo@awazorder.pk</code> · <code>Demo@1234</code>
+          </div>
+          <button type="button" class="btn sm" id="fill-demo">Use demo account</button>
+        </div>
+
+        <a href="/" class="muted" style="font-size:14px;text-decoration:none">← Back to home</a>
+      </form>
+    </main>
+  </div>
+  <script src="/static/login.js"></script>
+</body>
+</html>
