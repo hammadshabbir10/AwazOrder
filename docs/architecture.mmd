@@ -48,7 +48,8 @@ flowchart TD
         ORDER["Create order, update khata"]
         REPLY["💬 Reply agent<br/>Urdu WhatsApp text, numbers in words for speech"]
         VOICE["🔊 Voice agent<br/>ElevenLabs eleven_v3 Urdu, signed and cached"]
-        SHOP["Shopkeeper receives the confirmation: text and voice note"]
+        RECEIPT["🧾 Receipt: itemised PDF, CSV and print, from the signed order"]
+        SHOP["Shopkeeper receives the confirmation: text, voice note and receipt"]
     end
 
     DB[("6 · Database: products, shops, orders, khata ledger, voice notes with agent traces")]
@@ -78,6 +79,8 @@ flowchart TD
     REPLY --> VOICE
     REPLY --> SHOP
     VOICE --> SHOP
+    ORDER --> RECEIPT
+    RECEIPT --> SHOP
     ORDER --> DB
     PAY --> DB
 
@@ -88,7 +91,7 @@ flowchart TD
     classDef done fill:#e8f6ed,stroke:#17803d,color:#0f1b2d
     classDef store fill:#ffffff,stroke:#66738a,color:#0f1b2d
 
-    class UI,VAL,GUARD,ORDER core
+    class UI,VAL,GUARD,ORDER,RECEIPT core
     class L,R,E,C,V,K,REPLY,VOICE agent
     class FB fallback
     class REVIEW,PAY,BAL human

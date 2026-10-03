@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import ai, pipeline
+from app import ai, pipeline, receipt
 from app.db import connect, get_products, get_shops, init_db, now, verify_password
 
 BASE = Path(__file__).parent
@@ -384,9 +384,11 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
             conn.execute("UPDATE notes SET order_id = ? WHERE id = ? AND user_id = ?", (order_id, body.note_id, user["id"]))
 
     snapshot = {"id": order_id, "shop_id": shop["id"], "created_at": created, "total": total,
-                "lines": lines, "source": body.source, "payment": body.payment}
+                "lines": lines, "source": body.source, "payment": body.payment,
+                "balance": balance, "distributor": user["name"]}
     return {"id": order_id, "total": total, "balance": balance, "reply": reply, "payment": body.payment,
-            "shop": shop["name"], "phone": shop["phone"], "tts": ai.tts_enabled(),
+            "shop": shop["name"], "phone": shop["phone"], "area": shop["area"], "tts": ai.tts_enabled(),
+            "lines": lines, "created_at": created, "receipt_no": receipt.receipt_number(order_id),
             "speech_token": sign_text(spoken), "order_token": sign_text(json.dumps(snapshot), "order")}
 
 
@@ -419,9 +421,11 @@ def _payment_response(conn, display_id: int, local_id: int, shop: dict, lines: l
     spoken = pipeline.spoken_reply(display_id, shop["name"], lines, total, payment, balance)
     conn.execute("UPDATE orders SET reply = ?, spoken = ? WHERE id = ?", (reply, spoken, local_id))
     out = {"id": display_id, "payment": payment, "balance": balance, "reply": reply, "total": total,
-           "shop": shop["name"], "phone": shop["phone"], "speech_token": sign_text(spoken)}
+           "shop": shop["name"], "phone": shop["phone"], "area": shop["area"], "lines": lines,
+           "receipt_no": receipt.receipt_number(display_id), "speech_token": sign_text(spoken)}
     if snapshot is not None:
-        out["order_token"] = sign_text(json.dumps({**snapshot, "payment": payment}), "order")
+        out["created_at"] = snapshot["created_at"]
+        out["order_token"] = sign_text(json.dumps({**snapshot, "payment": payment, "balance": balance}), "order")
     return out
 
 
@@ -470,6 +474,61 @@ def set_payment(order_id: int, body: PaymentChoiceIn, user: dict = Depends(curre
         _apply_payment(conn, order_id, shop["id"], order["total"], body.payment)
         return _payment_response(conn, order_id, order_id, shop, json.loads(order["lines_json"]),
                                  order["total"], body.payment, user, None)
+
+
+# ---------------------------------------------------------------- receipts (PDF / CSV)
+
+def _receipt_response(data: dict, fmt: str) -> Response:
+    name = f"receipt-{receipt.receipt_number(data['id'])}"
+    if fmt == "csv":
+        return Response(receipt.build_csv(data), media_type="text/csv; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="{name}.csv"'})
+    return Response(receipt.build_pdf(data), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{name}.pdf"'})
+
+
+def _shop_card(shop_id: int) -> dict:
+    shop = next((s for s in get_shops() if s["id"] == shop_id), None)
+    if not shop:
+        raise HTTPException(400, "Unknown shop.")
+    return {"name": shop["name"], "area": shop["area"], "phone": shop["phone"]}
+
+
+class ReceiptIn(BaseModel):
+    token: str = Field(max_length=20000)
+    format: str = Field(default="pdf", pattern="^(pdf|csv)$")
+
+
+@app.post("/api/receipt")
+def receipt_from_token(body: ReceiptIn, user: dict = Depends(current_user)):
+    """Receipt for the order just confirmed, from its signed snapshot (any server instance)."""
+    raw = verify_text(body.token, "order")
+    if not raw:
+        raise HTTPException(400, "This receipt link has expired. Open the order from the Orders tab.")
+    snap = json.loads(raw)
+    data = {**snap, "shop": _shop_card(snap["shop_id"]), "distributor": snap.get("distributor") or user["name"],
+            "balance": snap.get("balance", 0)}
+    return _receipt_response(data, body.format)
+
+
+@app.get("/api/orders/{order_id}/receipt")
+def receipt_for_order(order_id: int, format: str = "pdf", user: dict = Depends(current_user)):
+    """Receipt for an order listed in the Orders tab."""
+    if format not in ("pdf", "csv"):
+        raise HTTPException(400, "Format must be pdf or csv.")
+    with connect() as conn:
+        order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not order:
+            raise HTTPException(404, "Order not found. Refresh the Orders tab and try again.")
+        entry = conn.execute("SELECT id FROM ledger WHERE order_id = ?", (order_id,)).fetchone()
+        balance = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE shop_id = ? AND id <= ?",
+            (order["shop_id"], entry["id"] if entry else 10**12),
+        ).fetchone()[0]
+    data = {"id": order_id, "created_at": order["created_at"], "shop": _shop_card(order["shop_id"]),
+            "lines": json.loads(order["lines_json"]), "total": order["total"], "payment": order["payment"],
+            "balance": balance, "distributor": user["name"]}
+    return _receipt_response(data, format)
 
 
 # ---------------------------------------------------------------- Urdu voice (ElevenLabs)

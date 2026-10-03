@@ -3,3 +3,4 @@ uvicorn[standard]==0.32.1
 python-multipart==0.0.20
 httpx==0.28.1
 rapidfuzz==3.11.0
+fpdf2==2.8.9

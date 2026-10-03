@@ -580,6 +580,7 @@ function showReplyCard(res) {
   const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
   $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
   show("pay-pending", false);
+  show("receipt-wrap", false);
   $("tts-audio").removeAttribute("src");
   show("tts-audio", false);
   $("tts-hint").textContent = state.status?.tts ? "" : "Add ELEVENLABS_API_KEY to hear this reply in an Urdu voice.";
@@ -671,6 +672,75 @@ $("confirm").onclick = async () => {
 /* ================================================================ done + Urdu voice */
 
 const PAY_LABEL = { credit: "on khata", cash: "cash on delivery", unknown: "payment method pending" };
+const RECEIPT_PAY = { credit: "Khata (credit)", cash: "Cash on delivery", unknown: "Pending: ask the shop" };
+
+function pktTime(iso) {
+  const d = new Date(new Date(iso).getTime() + 5 * 3600 * 1000);
+  const h = d.getUTCHours() % 12 || 12;
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${h}:${String(d.getUTCMinutes()).padStart(2, "0")} ${d.getUTCHours() < 12 ? "AM" : "PM"} PKT`;
+}
+
+function renderReceipt(o) {
+  if (!o || !o.lines) { show("receipt-wrap", false); return; }
+  const qty = (q) => (Number.isInteger(Number(q)) ? Number(q) : Number(q).toString());
+  const units = o.lines.reduce((t, l) => t + Number(l.quantity), 0);
+  const due = o.payment === "credit"
+    ? `<div><span>Added to khata</span><span>${pkr(o.total)}</span></div><div class="due"><span>Khata balance after this order</span><span>${pkr(o.balance)}</span></div>`
+    : o.payment === "cash"
+      ? `<div class="due"><span>To collect on delivery</span><span>${pkr(o.total)}</span></div>`
+      : `<div class="due"><span>Payment method</span><span>Pending</span></div>`;
+  $("receipt").innerHTML = `
+    <div class="rc-band">
+      <div><strong>${esc($("user-name").textContent)}</strong><small>Order desk powered by Awaz Order</small></div>
+      <div class="rc-no"><strong>ORDER RECEIPT</strong><small>${esc(o.receipt_no || "")}</small></div>
+    </div>
+    <div class="rc-meta">
+      <div><span class="lbl">Bill to</span><b>${esc(o.shop)}</b><br><span class="muted">${esc(o.area || "")}<br>${esc(o.phone || "")}</span></div>
+      <div class="right"><span class="lbl">Details</span>${o.created_at ? `Date: ${esc(pktTime(o.created_at))}<br>` : ""}<span class="muted">Payment: ${esc(RECEIPT_PAY[o.payment] || o.payment)}</span></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>${o.lines.map((l, i) => `<tr><td>${i + 1}</td><td>${esc(l.name)}</td><td class="num">${qty(l.quantity)}</td><td>${esc(l.unit)}</td><td class="num">${Math.round(l.price).toLocaleString("en-PK")}</td><td class="num"><strong>${Math.round(l.line_total).toLocaleString("en-PK")}</strong></td></tr>`).join("")}</tbody>
+    </table></div>
+    <div class="rc-totals">
+      <div class="muted"><span>${o.lines.length} line(s), ${qty(units)} unit(s)</span><span></span></div>
+      <div class="rc-grand"><span>TOTAL</span><span>${pkr(o.total)}</span></div>
+      ${due}
+    </div>
+    <div class="rc-foot">Thank you for your order. Prices are demo values.</div>`;
+  show("receipt-wrap", true);
+}
+
+async function downloadReceipt(format) {
+  const o = state.lastOrder;
+  if (!o || !o.order_token) return;
+  const btn = $(format === "pdf" ? "rc-pdf" : "rc-csv");
+  btn.disabled = true;
+  try {
+    const res = await fetch("/api/receipt", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: o.order_token, format }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || "Couldn't create the receipt. Please try again.");
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = Object.assign(document.createElement("a"), { href: url, download: `receipt-${o.receipt_no}.${format}` });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast(`Receipt ${o.receipt_no} downloaded`, "success");
+  } catch (e) {
+    toast(e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+$("rc-pdf").onclick = () => downloadReceipt("pdf");
+$("rc-csv").onclick = () => downloadReceipt("csv");
+$("rc-print").onclick = () => window.print();
 
 function renderDoneReply(res) {
   $("done-title").textContent = `Order #${res.id} confirmed`;
@@ -679,6 +749,7 @@ function renderDoneReply(res) {
   const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
   $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
   show("pay-pending", res.payment === "unknown");
+  renderReceipt(res);
 }
 
 document.querySelectorAll("#pay-pending [data-pay]").forEach((btn) => (btn.onclick = async () => {
@@ -839,13 +910,14 @@ function renderSamples(samples) {
 async function loadOrders() {
   const orders = await api("/api/orders");
   if (!orders.length) { $("orders").innerHTML = `<div class="empty">No orders yet. Confirm one from the New order tab.</div>`; return; }
-  $("orders").innerHTML = `<table><thead><tr><th>#</th><th>Shop</th><th>Items</th><th>Payment</th><th>Total</th><th>Source</th><th>Date</th></tr></thead><tbody>${
+  $("orders").innerHTML = `<table><thead><tr><th>#</th><th>Shop</th><th>Items</th><th>Payment</th><th>Total</th><th>Source</th><th>Date</th><th>Receipt</th></tr></thead><tbody>${
     orders.map((o) => `<tr>
       <td><strong>${o.id}</strong></td><td>${esc(o.shop)}</td>
       <td>${o.lines.map((l) => `${l.quantity} × ${esc(l.name)}`).join("<br>")}</td>
       <td>${o.payment === "credit" ? '<span class="pill">Khata</span>' : o.payment === "cash" ? '<span class="pill ok">Cash</span>'
         : `<div class="pay-cell"><span class="pill warn">Pending</span><button class="btn sm set-pay" data-id="${o.id}" data-pay="credit">Khata</button><button class="btn sm set-pay" data-id="${o.id}" data-pay="cash">Cash</button></div>`}</td>
       <td><strong>${pkr(o.total)}</strong></td><td>${esc(o.source)}</td><td class="muted">${timeAgo(o.created_at)}</td>
+      <td><div class="pay-cell"><a class="btn sm" href="/api/orders/${o.id}/receipt?format=pdf" download>PDF</a><a class="btn sm" href="/api/orders/${o.id}/receipt?format=csv" download>CSV</a></div></td>
     </tr>`).join("")}</tbody></table>`;
   document.querySelectorAll("#orders .set-pay").forEach((b) => (b.onclick = async () => {
     b.disabled = true;
