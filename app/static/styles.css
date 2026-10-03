@@ -323,6 +323,9 @@ tr.review-row td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
 .wa-bubble { background: #e7f6ec; border-radius: 18px 18px 6px 18px; padding: 18px 20px; white-space: pre-wrap; font-family: var(--font-urdu); font-size: 16px; line-height: 2.15; direction: rtl; text-align: right; margin: 0; }
 .done-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .tts-hint { font-size: 13px; color: var(--muted); }
+.pay-pending { display: block; line-height: 1.55; }
+.pay-choices { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.pay-cell { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 /* khata + catalogue */
 .khata-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 22px; align-items: start; }

@@ -351,6 +351,7 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
     processing_ms = review_lines = ai_mode = None
     if body.source == "sample":
         ai_mode = "cached"
+    created = now()
     with connect() as conn:
         if body.note_id:
             note = conn.execute("SELECT draft_json FROM notes WHERE id = ? AND user_id = ?",
@@ -364,7 +365,7 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
             """INSERT INTO orders (shop_id, created_at, transcript, payment, total, source, lines_json, note_id,
                                    processing_ms, review_lines, ai_mode)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (shop["id"], now(), body.transcript, body.payment, total, body.source, json.dumps(lines), body.note_id,
+            (shop["id"], created, body.transcript, body.payment, total, body.source, json.dumps(lines), body.note_id,
              processing_ms, review_lines, ai_mode),
         )
         order_id = cur.lastrowid
@@ -380,9 +381,93 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
         if body.note_id:
             conn.execute("UPDATE notes SET order_id = ? WHERE id = ? AND user_id = ?", (order_id, body.note_id, user["id"]))
 
-    return {"id": order_id, "total": total, "balance": balance, "reply": reply,
+    snapshot = {"id": order_id, "shop_id": shop["id"], "created_at": created, "total": total,
+                "lines": lines, "source": body.source, "payment": body.payment}
+    return {"id": order_id, "total": total, "balance": balance, "reply": reply, "payment": body.payment,
             "shop": shop["name"], "phone": shop["phone"], "tts": ai.tts_enabled(),
-            "speech_token": sign_text(spoken)}
+            "speech_token": sign_text(spoken), "order_token": sign_text(json.dumps(snapshot), "order")}
+
+
+# ---------------------------------------------------------------- recording the payment method later
+#
+# An order confirmed as "ask the shop" stays pending until the shop answers.
+# Recording the answer updates the order, adds the khata entry for credit, and
+# returns a fresh WhatsApp reply and voice token.
+
+class PaymentChoiceIn(BaseModel):
+    payment: str = Field(pattern="^(credit|cash)$")
+    token: str | None = Field(default=None, max_length=20000)
+
+
+def _apply_payment(conn, order_id: int, shop_id: int, total: int, payment: str) -> None:
+    conn.execute("UPDATE orders SET payment = ? WHERE id = ?", (payment, order_id))
+    if payment == "credit" and not conn.execute(
+        "SELECT 1 FROM ledger WHERE order_id = ?", (order_id,)
+    ).fetchone():
+        conn.execute(
+            "INSERT INTO ledger (shop_id, created_at, kind, amount, note, order_id) VALUES (?, ?, 'credit_order', ?, ?, ?)",
+            (shop_id, now(), total, f"Order #{order_id}", order_id),
+        )
+
+
+def _payment_response(conn, display_id: int, local_id: int, shop: dict, lines: list, total: int,
+                      payment: str, user: dict, snapshot: dict | None) -> dict:
+    balance = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE shop_id = ?", (shop["id"],)).fetchone()[0]
+    reply = pipeline.whatsapp_reply(display_id, shop["name"], lines, total, payment, balance, user["name"])
+    spoken = pipeline.spoken_reply(display_id, shop["name"], lines, total, payment, balance)
+    conn.execute("UPDATE orders SET reply = ?, spoken = ? WHERE id = ?", (reply, spoken, local_id))
+    out = {"id": display_id, "payment": payment, "balance": balance, "reply": reply, "total": total,
+           "shop": shop["name"], "phone": shop["phone"], "speech_token": sign_text(spoken)}
+    if snapshot is not None:
+        out["order_token"] = sign_text(json.dumps({**snapshot, "payment": payment}), "order")
+    return out
+
+
+@app.post("/api/orders/payment")
+def set_payment_from_token(body: PaymentChoiceIn, user: dict = Depends(current_user)):
+    """Record the shop's payment choice for the order just confirmed.
+
+    Works from the signed order snapshot, so it succeeds on any server
+    instance: if this instance has never seen the order, it stores it first.
+    """
+    raw = verify_text(body.token or "", "order")
+    if not raw:
+        raise HTTPException(400, "This order can't be updated from here any more. Use the Orders tab.")
+    snap = json.loads(raw)
+    shop = next((s for s in get_shops() if s["id"] == snap["shop_id"]), None)
+    if not shop:
+        raise HTTPException(400, "Unknown shop.")
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM orders WHERE created_at = ? AND shop_id = ? AND total = ?",
+            (snap["created_at"], snap["shop_id"], snap["total"]),
+        ).fetchone()
+        if row:
+            local_id = row["id"]
+        else:
+            local_id = conn.execute(
+                """INSERT INTO orders (shop_id, created_at, transcript, payment, total, source, lines_json)
+                   VALUES (?, ?, '', 'unknown', ?, ?, ?)""",
+                (snap["shop_id"], snap["created_at"], snap["total"], snap["source"], json.dumps(snap["lines"])),
+            ).lastrowid
+        _apply_payment(conn, local_id, shop["id"], snap["total"], body.payment)
+        return _payment_response(conn, snap["id"], local_id, shop, snap["lines"], snap["total"],
+                                 body.payment, user, snap)
+
+
+@app.post("/api/orders/{order_id}/payment")
+def set_payment(order_id: int, body: PaymentChoiceIn, user: dict = Depends(current_user)):
+    """Record the payment choice for an order listed in the Orders tab."""
+    with connect() as conn:
+        order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        if not order:
+            raise HTTPException(404, "Order not found. Refresh the Orders tab and try again.")
+        if order["payment"] != "unknown":
+            raise HTTPException(409, "This order's payment method is already recorded.")
+        shop = next(s for s in get_shops() if s["id"] == order["shop_id"])
+        _apply_payment(conn, order_id, shop["id"], order["total"], body.payment)
+        return _payment_response(conn, order_id, order_id, shop, json.loads(order["lines_json"]),
+                                 order["total"], body.payment, user, None)
 
 
 # ---------------------------------------------------------------- Urdu voice (ElevenLabs)
@@ -395,15 +480,15 @@ def create_order(body: OrderIn, user: dict = Depends(current_user)):
 MAX_SPOKEN_CHARS = 2000
 
 
-def sign_text(text: str) -> str:
+def sign_text(text: str, purpose: str = "speech") -> str:
     body = base64.urlsafe_b64encode(text.encode()).decode()
-    return f"{body}.{_sign('speech:' + body)}"
+    return f"{body}.{_sign(f'{purpose}:{body}')}"
 
 
-def verify_text(token: str) -> str | None:
+def verify_text(token: str, purpose: str = "speech") -> str | None:
     try:
         body, sig = token.rsplit(".", 1)
-        if not hmac.compare_digest(sig, _sign("speech:" + body)):
+        if not hmac.compare_digest(sig, _sign(f"{purpose}:{body}")):
             return None
         return base64.urlsafe_b64decode(body.encode()).decode()
     except Exception:

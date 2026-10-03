@@ -154,6 +154,15 @@
             <span class="done-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
             <div><h2 id="done-title">Order confirmed</h2><p class="muted" id="done-sub"></p></div>
           </div>
+          <div class="alert warn pay-pending hidden" id="pay-pending">
+            <div>
+              <strong>Payment method pending.</strong> The reply asks the shop how they'll pay. When they answer, record it here and send the updated reply.
+              <div class="pay-choices">
+                <button class="btn sm primary" data-pay="credit">Khata (credit)</button>
+                <button class="btn sm" data-pay="cash">Cash on delivery</button>
+              </div>
+            </div>
+          </div>
           <pre class="wa-bubble" id="reply" lang="ur"></pre>
           <audio id="tts-audio" class="hidden" controls style="width:100%;max-width:420px"></audio>
           <div class="done-actions">

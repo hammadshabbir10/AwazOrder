@@ -501,13 +501,40 @@ $("confirm").onclick = async () => {
 
 /* ================================================================ done + Urdu voice */
 
-function showDone(res) {
-  show("review", false);
+const PAY_LABEL = { credit: "on khata", cash: "cash on delivery", unknown: "payment method pending" };
+
+function renderDoneReply(res) {
   $("done-title").textContent = `Order #${res.id} confirmed`;
-  $("done-sub").textContent = `${res.shop} · ${pkr(res.total)}${$("payment").value === "credit" ? ` · khata balance ${pkr(res.balance)}` : ""}`;
+  $("done-sub").textContent = `${res.shop} · ${pkr(res.total)} · ${PAY_LABEL[res.payment] || ""}${res.payment === "credit" ? ` · khata balance ${pkr(res.balance)}` : ""}`;
   $("reply").textContent = res.reply;
   const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
   $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
+  show("pay-pending", res.payment === "unknown");
+}
+
+document.querySelectorAll("#pay-pending [data-pay]").forEach((btn) => (btn.onclick = async () => {
+  const order = state.lastOrder;
+  if (!order) return;
+  const buttons = document.querySelectorAll("#pay-pending [data-pay]");
+  buttons.forEach((b) => (b.disabled = true));
+  try {
+    const res = await postJson("/api/orders/payment", { payment: btn.dataset.pay, token: order.order_token });
+    state.lastOrder = { ...order, ...res };
+    renderDoneReply(state.lastOrder);
+    $("tts-audio").removeAttribute("src");
+    show("tts-audio", false);
+    toast(btn.dataset.pay === "credit" ? "Recorded on khata. Send the updated reply." : "Recorded as cash on delivery. Send the updated reply.", "success");
+    refreshStats();
+  } catch (e) {
+    toast(e.message, "error");
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}));
+
+function showDone(res) {
+  show("review", false);
+  renderDoneReply(res);
   $("tts-audio").removeAttribute("src");
   show("tts-audio", false);
   $("tts-hint").textContent = state.status?.tts ? "" : urduBrowserVoice()
@@ -647,9 +674,22 @@ async function loadOrders() {
     orders.map((o) => `<tr>
       <td><strong>${o.id}</strong></td><td>${esc(o.shop)}</td>
       <td>${o.lines.map((l) => `${l.quantity} × ${esc(l.name)}`).join("<br>")}</td>
-      <td>${o.payment === "credit" ? '<span class="pill">Khata</span>' : o.payment === "cash" ? '<span class="pill ok">Cash</span>' : '<span class="pill plain">Ask</span>'}</td>
+      <td>${o.payment === "credit" ? '<span class="pill">Khata</span>' : o.payment === "cash" ? '<span class="pill ok">Cash</span>'
+        : `<div class="pay-cell"><span class="pill warn">Pending</span><button class="btn sm set-pay" data-id="${o.id}" data-pay="credit">Khata</button><button class="btn sm set-pay" data-id="${o.id}" data-pay="cash">Cash</button></div>`}</td>
       <td><strong>${pkr(o.total)}</strong></td><td>${esc(o.source)}</td><td class="muted">${timeAgo(o.created_at)}</td>
     </tr>`).join("")}</tbody></table>`;
+  document.querySelectorAll("#orders .set-pay").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await postJson(`/api/orders/${b.dataset.id}/payment`, { payment: b.dataset.pay });
+      toast(`Order #${b.dataset.id} recorded as ${b.dataset.pay === "credit" ? "khata (credit)" : "cash"}`, "success");
+      loadOrders();
+      refreshStats();
+    } catch (e) {
+      toast(e.message, "error");
+      b.disabled = false;
+    }
+  }));
 }
 
 async function loadShops(selectId) {
