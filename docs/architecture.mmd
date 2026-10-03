@@ -1,49 +1,100 @@
 flowchart TD
-    subgraph Client["Client: web app (mobile-friendly)"]
-        U["Distributor / order-taker"]
-        FE["Web UI: login, record or upload voice note, type order, review, khata dashboard"]
+    subgraph CLIENT["1 · Client: web app, desktop and mobile"]
+        direction TB
+        LAND["Landing page"] --> LOGIN["Sign in: demo account, signed session cookie"]
+        LOGIN --> UI["Order desk: record, upload or type an order"]
+        UI --> VAL["Client validation: mic permission, 1.5 to 30 s, silence check, file type and size"]
     end
 
-    subgraph Backend["FastAPI backend"]
-        AUTH["Auth + per-user rate limit + 30s audio limit"]
-        SAMPLES["Sample cache: pre-processed demo orders, no API call"]
-        ASR["Speech-to-text: Whisper large-v3 with brand-name prompt"]
-        EXT["Order extraction: Qwen 3.8 27B, then gpt-oss-120b, catalogue-constrained JSON"]
-        OFF["Offline parser: Urdu/Roman Urdu number words, units, filler rules"]
-        MATCH["Catalogue matching + validation: RapidFuzz over Urdu / Roman Urdu / English aliases"]
-        CONF{"Confident match?"}
-        REVIEW["Human review: highlighted lines, 'Did you mean...?' suggestions"]
-        ORDER["Create order + price lines"]
-        LEDGER["Khata ledger: credit entries, payments, balances"]
-        REPLY["Urdu WhatsApp confirmation generator"]
+    subgraph API["2 · FastAPI backend"]
+        GUARD["Server checks: auth, format, size, duration, rate limit per user"]
+        SAMPLE["Sample cache: pre-processed demo orders, no API call"]
     end
 
-    subgraph Inference["Open-model inference (fallback chain)"]
-        P1["Primary: Groq"]
-        P2["Backup: OpenAI-compatible provider, same open models"]
+    subgraph AI["3 · AI pipeline: open models with a fallback chain"]
+        ASR1["Whisper large-v3: Urdu, brand-name prompt"]
+        ASR2["Whisper large-v3 turbo"]
+        SIL{"Speech detected?"}
+        RETRY["Ask the user to re-record"]
+        LLM1["Qwen 3.8 27B: catalogue-constrained JSON extraction"]
+        LLM2["gpt-oss-120b"]
+        OFF["Offline parser: Urdu number words, units, RapidFuzz, no API"]
     end
 
-    subgraph Data["Data"]
-        DB[("SQLite / PostgreSQL: users, shops, orders, ledger")]
-        CAT[("Product catalogue + aliases + prices")]
+    subgraph LOGIC["4 · Deterministic business logic: AI understands, code decides"]
+        MATCH["Catalogue validation: re-match unknown SKUs, prices from database"]
+        CONF{"Every line confident?"}
+        REVIEW["Human review: highlighted lines, did-you-mean suggestions"]
+        QUICK["One-tap confirm"]
+        ORDER["Create order and price lines"]
+        LEDGER["Khata ledger: credit entries and payments"]
+        REPLY["Urdu WhatsApp reply text"]
+        SPOKEN["Spoken text: Urdu names, numbers as words"]
     end
 
-    U --> FE --> AUTH
-    AUTH -->|sample| SAMPLES --> CONF
-    AUTH -->|voice note| ASR --> EXT
-    AUTH -->|typed text| EXT
-    ASR -.-> P1
-    EXT -.-> P1
-    P1 -.->|rate limit / outage| P2
-    P2 -.->|both unavailable| OFF
-    EXT --> MATCH
+    subgraph OUT["5 · Output"]
+        TTS["ElevenLabs eleven_v3: Urdu voice, cached per order"]
+        SHOP["Shopkeeper receives the confirmation: text and voice note"]
+    end
+
+    subgraph STORE["6 · Storage"]
+        NOTES["Voice note history: audio, transcript, draft"]
+        DB[("Database: users, products, shops, orders, ledger, notes")]
+    end
+
+    VAL -->|voice note| GUARD
+    UI -->|typed order| GUARD
+    UI -->|sample| SAMPLE
+
+    GUARD -->|audio| ASR1
+    ASR1 -.->|rate limited| ASR2
+    ASR1 --> SIL
+    ASR2 --> SIL
+    SIL -->|no| RETRY
+    SIL -->|yes| LLM1
+    GUARD -->|text| LLM1
+    LLM1 -.->|rate limited| LLM2
+    LLM2 -.->|all AI busy| OFF
+
+    LLM1 --> MATCH
+    LLM2 --> MATCH
     OFF --> MATCH
-    MATCH --> CAT
+    SAMPLE --> CONF
     MATCH --> CONF
     CONF -->|no| REVIEW
-    CONF -->|yes| QUICK["One-tap confirm"]
-    REVIEW -->|corrected + confirmed| ORDER
+    CONF -->|yes| QUICK
+    REVIEW -->|corrected| ORDER
     QUICK --> ORDER
+
+    ORDER --> LEDGER
+    ORDER --> REPLY
+    ORDER --> SPOKEN
+    SPOKEN --> TTS
+    REPLY --> SHOP
+    TTS --> SHOP
+
+    MATCH --> NOTES
+    NOTES --> DB
     ORDER --> DB
-    ORDER --> LEDGER --> DB
-    LEDGER --> REPLY --> FE
+    LEDGER --> DB
+
+    classDef core fill:#e9eef6,stroke:#1d3557,color:#0f1b2d
+    classDef ai fill:#fdf0e5,stroke:#e07a2f,color:#0f1b2d
+    classDef fallback fill:#f1f4f9,stroke:#66738a,stroke-dasharray:5 4,color:#0f1b2d
+    classDef human fill:#fff4e2,stroke:#a8570a,color:#0f1b2d
+    classDef done fill:#e8f6ed,stroke:#17803d,color:#0f1b2d
+    classDef store fill:#ffffff,stroke:#66738a,color:#0f1b2d
+
+    class LAND,LOGIN,UI,VAL,GUARD,MATCH,ORDER,LEDGER,REPLY,SPOKEN core
+    class ASR1,LLM1,TTS ai
+    class ASR2,LLM2,OFF,SAMPLE,RETRY fallback
+    class SIL,CONF,REVIEW,QUICK human
+    class SHOP done
+    class NOTES,DB store
+
+    style CLIENT fill:#f8fafc,stroke:#d3dbe7
+    style API fill:#f8fafc,stroke:#d3dbe7
+    style AI fill:#fffaf5,stroke:#f2c9a4
+    style LOGIC fill:#f8fafc,stroke:#d3dbe7
+    style OUT fill:#f6fbf8,stroke:#bfe3cb
+    style STORE fill:#f8fafc,stroke:#d3dbe7
