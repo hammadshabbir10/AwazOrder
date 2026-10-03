@@ -5,13 +5,16 @@ import json
 import os
 import secrets
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from app.history import seed_history
 from app.seed import DEMO_USER, PRODUCTS, SHOPS
 
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "awaz.db"))
+# Serverless hosts (Vercel) only allow writes under /tmp.
+_DEFAULT_DB = os.path.join(tempfile.gettempdir(), "awaz.db") if os.environ.get("VERCEL") else os.path.join(os.path.dirname(__file__), "..", "awaz.db")
+DB_PATH = os.environ.get("DB_PATH", _DEFAULT_DB)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (

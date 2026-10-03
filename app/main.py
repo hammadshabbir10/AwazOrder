@@ -40,10 +40,15 @@ LIVE_CALLS_PER_HOUR = int(os.environ.get("LIVE_CALLS_PER_HOUR", "20"))
 app = FastAPI(title="Awaz Order", docs_url="/api/docs", redoc_url=None)
 
 
-@app.on_event("startup")
 def _startup() -> None:
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     init_db()
+
+
+# Run at import as well as on startup: serverless runtimes (Vercel) may not
+# send ASGI lifespan events. Both calls are idempotent.
+_startup()
+app.add_event_handler("startup", _startup)
 
 
 # ---------------------------------------------------------------- auth
