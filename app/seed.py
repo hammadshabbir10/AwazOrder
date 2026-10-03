@@ -116,3 +116,15 @@ URDU_SHOP_NAMES = {
     "Usman Karyana": "عثمان کریانہ",
     "Chaudhry Mart": "چوہدری مارٹ",
 }
+
+# Credit limit per shop (PKR). The Credit agent warns before an order takes a
+# shop's khata past 80% of its limit and flags orders that would exceed it.
+CREDIT_LIMITS = {
+    "Bismillah General Store": 1_200_000,
+    "Madina Karyana": 1_000_000,
+    "Al-Rehman Traders": 900_000,
+    "Faisal Super Store": 2_000_000,
+    "Usman Karyana": 800_000,
+    "Chaudhry Mart": 750_000,
+}
+DEFAULT_CREDIT_LIMIT = 500_000

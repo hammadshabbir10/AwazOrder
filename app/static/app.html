@@ -107,7 +107,7 @@
 
         <!-- processing -->
         <div class="card hidden" id="processing" aria-live="polite">
-          <div class="card-head"><h2>Processing…</h2><span class="spinner dark"></span></div>
+          <div class="card-head"><div><h2>Agents at work…</h2><p>Each agent does one job and hands its result to the next.</p></div><span class="spinner dark"></span></div>
           <div class="progress-steps">
             <ol id="steps"></ol>
           </div>
@@ -124,6 +124,7 @@
             <p id="transcript" dir="auto"></p>
             <audio id="review-audio" controls class="hidden" style="width:100%;max-width:420px"></audio>
           </div>
+          <div class="alert hidden" id="credit-alert" role="status"></div>
           <div class="alert warn hidden" id="unmatched"></div>
           <div class="alert info hidden" id="no-items">No catalogue items were recognised. Add them below, or record the order again a little more clearly.</div>
           <div class="table-wrap">
@@ -146,6 +147,29 @@
             <button class="btn primary lg" id="confirm">Confirm order</button>
           </div>
           <div class="alert error" id="review-error" role="alert"></div>
+          <details class="trace" id="review-trace-wrap" open>
+            <summary>Agent trace <span class="muted" id="review-trace-total"></span></summary>
+            <ol class="trace-list" id="review-trace"></ol>
+          </details>
+        </div>
+
+        <!-- non-order intents: payment report, balance question, other -->
+        <div class="card hidden" id="intent-card">
+          <div class="card-head">
+            <div><h2 id="intent-title"></h2><p id="intent-sub"></p></div>
+            <div class="badges"><span class="pill plain hidden" id="intent-timing"></span><span class="pill" id="intent-badge"></span></div>
+          </div>
+          <div class="transcript-box">
+            <span class="label">What the AI heard</span>
+            <p id="intent-transcript" dir="auto"></p>
+            <audio id="intent-audio" controls class="hidden" style="width:100%;max-width:420px"></audio>
+          </div>
+          <div id="intent-body" class="intent-body"></div>
+          <div class="alert error" id="intent-error" role="alert"></div>
+          <details class="trace" open>
+            <summary>Agent trace <span class="muted" id="intent-trace-total"></span></summary>
+            <ol class="trace-list" id="intent-trace"></ol>
+          </details>
         </div>
 
         <!-- done -->

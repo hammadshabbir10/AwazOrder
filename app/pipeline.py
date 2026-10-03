@@ -18,6 +18,43 @@ def vocabulary_hint(products: list[dict]) -> str:
     return "Order for a distributor. Brands: " + ", ".join(brands)
 
 
+def build_line(by_sku: dict, sku: str, quantity: float, spoken: str = "", confidence: float = 0.9,
+               alternatives: list[str] | None = None, review_reason: str | None = None) -> dict:
+    """One priced order line. Prices always come from the catalogue, never the model."""
+    product = by_sku[sku]
+    quantity = float(quantity)
+    quantity = int(quantity) if quantity.is_integer() else quantity
+    alternatives = [a for a in alternatives or [] if a in by_sku and a != sku]
+    return {
+        "sku": sku,
+        "name": product["name"],
+        "unit": product["unit"],
+        "spoken": spoken,
+        "quantity": quantity,
+        "price": product["price"],
+        "line_total": round(product["price"] * quantity),
+        "confidence": round(max(0.0, min(confidence, 1.0)), 2),
+        "needs_review": confidence < REVIEW_THRESHOLD or bool(alternatives) or bool(review_reason),
+        "alternatives": [{"sku": a, "name": by_sku[a]["name"]} for a in alternatives[:3]],
+        "review_reason": review_reason,
+    }
+
+
+def find_shop(hint: str | None, shops: list[dict], text: str = "") -> int | None:
+    """Match a spoken shop name to a shop; falls back to scanning the whole text."""
+    # Every shop answers to its English and its Urdu-script name.
+    clean = lambda v: v.lower().replace("-", " ")  # "Al-Rehman" == "Al Rehman"
+    names = [(s["id"], clean(n)) for s in shops for n in (s["name"], URDU_SHOP_NAMES.get(s["name"], "")) if n]
+    if hint:
+        # token_set_ratio: distinctive words ("faisal") count, shared ones ("store") do not dominate.
+        found = process.extractOne(clean(hint), [n for _, n in names], scorer=fuzz.token_set_ratio)
+        if found and found[1] >= 70:
+            return names[found[2]][0]
+    lowered = clean(text)
+    best = max(((fuzz.partial_ratio(n, lowered), sid) for sid, n in names), default=(0, None))
+    return best[1] if best[0] >= 88 else None
+
+
 def _normalise(raw: dict, products: list[dict], transcript: str) -> dict:
     by_sku = {p["sku"]: p for p in products}
     lines = []
@@ -38,28 +75,9 @@ def _normalise(raw: dict, products: list[dict], transcript: str) -> dict:
         except (TypeError, ValueError):
             quantity = 1.0
             confidence = min(confidence, 0.5)
-        product = by_sku[sku]
-        quantity = int(quantity) if quantity.is_integer() else quantity
-        lines.append({
-            "sku": sku,
-            "name": product["name"],
-            "unit": product["unit"],
-            "spoken": item.get("spoken") or "",
-            "quantity": quantity,
-            "price": product["price"],
-            "line_total": round(product["price"] * quantity),
-            "confidence": round(max(0.0, min(confidence, 1.0)), 2),
-            "needs_review": confidence < REVIEW_THRESHOLD or bool(alternatives),
-            "alternatives": [{"sku": a, "name": by_sku[a]["name"]} for a in alternatives[:3]],
-        })
+        lines.append(build_line(by_sku, sku, quantity, item.get("spoken") or "", confidence, alternatives))
 
-    shop_id = None
-    hint = raw.get("shop_hint")
-    if hint:
-        shops = get_shops()
-        found = process.extractOne(hint, {s["id"]: s["name"] for s in shops}, scorer=fuzz.WRatio)
-        if found and found[1] >= 70:
-            shop_id = found[2]
+    shop_id = find_shop(raw.get("shop_hint"), get_shops(), transcript)
 
     payment = raw.get("payment") if raw.get("payment") in ("credit", "cash") else "unknown"
     return {
@@ -72,27 +90,6 @@ def _normalise(raw: dict, products: list[dict], transcript: str) -> dict:
     }
 
 
-def parse_text(transcript: str, use_ai: bool = True) -> dict:
-    """Structured order from text. Falls back to the offline parser if AI fails."""
-    products = get_products()
-    mode, provider, error = "offline", None, None
-    raw = None
-    started = time.perf_counter()
-    if use_ai:
-        try:
-            raw, provider = ai.extract_order(transcript, products)
-            mode = "ai"
-        except ai.AllProvidersFailed as exc:
-            error = str(exc)
-    if raw is None:
-        raw = offline_parse(transcript, products)
-    draft = _normalise(raw, products, transcript)
-    extract_ms = round((time.perf_counter() - started) * 1000)
-    draft.update({"mode": mode, "provider": provider, "ai_error": error,
-                  "timing": {"extract_ms": extract_ms, "total_ms": extract_ms}})
-    return draft
-
-
 class NoSpeech(Exception):
     """The recording had no usable speech."""
 
@@ -101,19 +98,16 @@ class NoSpeech(Exception):
 WHISPER_SILENCE = {"thank you", "thanks for watching", "شکریہ", "you", "bye", "subtitles"}
 
 
+def parse_text(transcript: str, use_ai: bool = True, intent: str | None = None) -> dict:
+    """Typed message -> draft, through the agent pipeline (see app/agents.py)."""
+    from app import agents
+    return agents.run(transcript, use_ai=use_ai, forced_intent=intent)
+
+
 def parse_audio(audio: bytes, filename: str, content_type: str) -> dict:
-    products = get_products()
-    started = time.perf_counter()
-    transcript, asr_provider = ai.transcribe(audio, filename, content_type, vocabulary_hint(products))
-    asr_ms = round((time.perf_counter() - started) * 1000)
-    cleaned = transcript.strip(" .۔!?،,").lower()
-    if len(cleaned) < 4 or cleaned in WHISPER_SILENCE:
-        raise NoSpeech()
-    draft = parse_text(transcript)
-    draft["asr_provider"] = asr_provider
-    extract_ms = draft["timing"]["extract_ms"]
-    draft["timing"] = {"asr_ms": asr_ms, "extract_ms": extract_ms, "total_ms": asr_ms + extract_ms}
-    return draft
+    """Voice note -> draft: the Listener agent first, then the same agent pipeline."""
+    from app import agents
+    return agents.run_audio(audio, filename, content_type)
 
 
 def format_pkr(amount: float) -> str:
@@ -176,3 +170,31 @@ def whatsapp_reply(order_id: int, shop_name: str, lines: list[dict], total: int,
         f"کل رقم: {round(total):,} روپے\n{pay}\n"
         f"شکریہ، {distributor}{RLM}"
     )
+
+
+def payment_receipt(shop_name: str, amount: int, balance: int, distributor: str) -> tuple[str, str]:
+    """(WhatsApp text, spoken text) acknowledging a payment from a shop."""
+    text = (
+        f"السلام علیکم، {shop_name}{RLM}\n"
+        f"آپ کی {amount:,} روپے کی ادائیگی موصول ہو گئی ہے۔ شکریہ!\n"
+        f"آپ کا باقی بقایا: {round(balance):,} روپے\n"
+        f"{distributor}{RLM}"
+    )
+    shop = URDU_SHOP_NAMES.get(shop_name, shop_name)
+    spoken = (
+        f"السلام علیکم، {shop}۔ آپ کی {rupees_words(amount)} کی ادائیگی موصول ہو گئی ہے۔ شکریہ۔ "
+        f"آپ کا باقی بقایا {rupees_words(max(balance, 0))} ہے۔"
+    )
+    return text, spoken
+
+
+def balance_reply(shop_name: str, balance: int, distributor: str) -> tuple[str, str]:
+    """(WhatsApp text, spoken text) answering 'how much do I owe?'."""
+    text = (
+        f"السلام علیکم، {shop_name}{RLM}\n"
+        f"آپ کا موجودہ بقایا: {round(balance):,} روپے\n"
+        f"ادائیگی کے لیے رابطہ کریں۔ شکریہ،\n{distributor}{RLM}"
+    )
+    shop = URDU_SHOP_NAMES.get(shop_name, shop_name)
+    spoken = f"السلام علیکم، {shop}۔ آپ کا موجودہ بقایا {rupees_words(max(balance, 0))} ہے۔ شکریہ۔"
+    return text, spoken

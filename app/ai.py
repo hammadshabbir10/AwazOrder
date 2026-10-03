@@ -22,7 +22,8 @@ class Provider:
     base_url: str
     api_key: str
     asr_models: list[str]
-    llm_models: list[str]
+    llm_models: list[str]       # extraction agent (largest models)
+    agent_models: list[str]     # router + verifier agents (fast models)
 
 
 def _models(value: str) -> list[str]:
@@ -40,6 +41,7 @@ def providers() -> list[Provider]:
             # kind roughly doubles the free-tier headroom.
             _models(os.environ.get("GROQ_ASR_MODELS", "whisper-large-v3,whisper-large-v3-turbo")),
             _models(os.environ.get("GROQ_LLM_MODELS", "qwen/qwen3.8-27b,openai/gpt-oss-120b")),
+            _models(os.environ.get("GROQ_AGENT_MODELS", "openai/gpt-oss-20b,qwen/qwen3.8-27b")),
         ))
     if os.environ.get("BACKUP_API_KEY") and os.environ.get("BACKUP_BASE_URL"):
         chain.append(Provider(
@@ -48,6 +50,7 @@ def providers() -> list[Provider]:
             os.environ["BACKUP_API_KEY"],
             _models(os.environ.get("BACKUP_ASR_MODELS", "")),
             _models(os.environ.get("BACKUP_LLM_MODELS", "")),
+            _models(os.environ.get("BACKUP_AGENT_MODELS", os.environ.get("BACKUP_LLM_MODELS", ""))),
         ))
     return chain
 
@@ -118,12 +121,27 @@ Return ONLY this JSON:
 
 
 def extract_order(transcript: str, products: list[dict]) -> tuple[dict, str]:
-    """LLM structured extraction. Returns (parsed json, 'provider:model')."""
-    catalogue = "\n".join(
-        f"{p['sku']} | {p['name']} | {p['unit']} | {', '.join(p['aliases'])}" for p in products
-    )
+    """Extraction agent's model call. Returns (parsed json, 'provider:model')."""
+    parsed, name = chat_json(EXTRACTION_PROMPT.format(catalogue=catalogue_text(products)), transcript,
+                             role="llm", require="lines")
+    if not isinstance(parsed.get("lines"), list):
+        raise AllProvidersFailed(f"{name}: no lines array")
+    return parsed, name
+
+
+def catalogue_text(products: list[dict]) -> str:
+    return "\n".join(f"{p['sku']} | {p['name']} | {p['unit']} | {', '.join(p['aliases'])}" for p in products)
+
+
+def chat_json(system: str, user: str, role: str = "llm", require: str | None = None) -> tuple[dict, str]:
+    """One JSON-mode chat call, tried across every provider and model for the role.
+
+    role "llm" uses the extraction models, role "agent" the fast agent models.
+    `require` names a key the JSON must contain. Returns (json, 'provider:model').
+    """
     errors = []
-    for p, model in ((p, m) for p in providers() for m in p.llm_models):
+    pairs = ((p, m) for p in providers() for m in (p.llm_models if role == "llm" else p.agent_models))
+    for p, model in pairs:
         name = f"{p.name}:{model}"
         try:
             resp = httpx.post(
@@ -133,18 +151,14 @@ def extract_order(transcript: str, products: list[dict]) -> tuple[dict, str]:
                     "model": model,
                     "temperature": 0,
                     "response_format": {"type": "json_object"},
-                    "messages": [
-                        {"role": "system", "content": EXTRACTION_PROMPT.format(catalogue=catalogue)},
-                        {"role": "user", "content": transcript},
-                    ],
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
                 },
                 timeout=TIMEOUT,
             )
             resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
-            if not isinstance(parsed.get("lines"), list):
-                raise ValueError("model returned no 'lines' array")
+            parsed = json.loads(resp.json()["choices"][0]["message"]["content"])
+            if require and require not in parsed:
+                raise ValueError(f"model returned no '{require}'")
             _record(name, True)
             return parsed, name
         except Exception as exc:  # noqa: BLE001

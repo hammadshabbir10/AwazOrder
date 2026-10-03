@@ -28,5 +28,17 @@
     "title": "Rice, atta and daal",
     "shop": "Usman Karyana",
     "transcript": "Usman Karyana. 3 bori sella chawal, 5 bag atta, 20 kilo daal chana aur 10 kilo masoor. Udhar."
+  },
+  {
+    "id": "s6",
+    "title": "Payment report: “bees hazar bhej diye”",
+    "shop": "Usman Karyana",
+    "transcript": "Assalam o alaikum, Usman Karyana se bol raha hoon. Bhai bees hazar rupay Easypaisa kar diye hain, khaate mein jama kar lein."
+  },
+  {
+    "id": "s7",
+    "title": "Balance question: “kitna baqaya hai?”",
+    "shop": "Chaudhry Mart",
+    "transcript": "Bhai Chaudhry Mart se. Zara bata dein mera abhi kitna baqaya hai?"
   }
 ]

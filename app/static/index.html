@@ -18,6 +18,7 @@
       <nav aria-label="Sections">
         <a href="#features">Features</a>
         <a href="#how">How it works</a>
+        <a href="#agents">Agents</a>
         <a href="#architecture">Architecture</a>
       </nav>
       <a class="btn primary sm" id="nav-cta" href="/login">Sign in</a>
@@ -120,8 +121,8 @@
             <span class="urdu" lang="ur" dir="rtl">دو کارٹن شان بریانی، پانچ ٹین ڈالڈا</span>
           </div>
           <div class="step reveal">
-            <h3>AI understands it</h3>
-            <p>Whisper turns speech into text; an open LLM extracts items, quantities, payment and shop.</p>
+            <h3>AI agents understand it</h3>
+            <p>A team of specialised agents listens, works out what the shopkeeper wants, extracts the order and double-checks it.</p>
           </div>
           <div class="step reveal">
             <h3>Review in one tap</h3>
@@ -135,19 +136,38 @@
       </div>
     </section>
 
-    <!-- 4. Architecture -->
+    <!-- 4. Agents -->
+    <section class="block" id="agents">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="eyebrow">Multi-agent AI</span>
+          <h2>Six agents, one job each</h2>
+          <p>Every message passes through a pipeline of specialised agents. Each hands a structured result to the next, and every step is traced so you can see who decided what, and how long it took.</p>
+        </div>
+        <div class="agent-grid">
+          <article class="agent-card reveal"><span class="agent-emoji">🎧</span><div><h3>Listener</h3><span class="agent-engine">Whisper large-v3</span><p>Turns Urdu and Punjabi voice notes into text, primed with your brand names.</p></div></article>
+          <article class="agent-card reveal"><span class="agent-emoji">🧭</span><div><h3>Router</h3><span class="agent-engine">gpt-oss-20b</span><p>Decides what the message is: a new order, a payment (“bees hazar bhej diye”) or a balance question.</p></div></article>
+          <article class="agent-card reveal"><span class="agent-emoji">📦</span><div><h3>Extraction</h3><span class="agent-engine">Qwen 3.8 → gpt-oss-120b</span><p>Pulls out items, quantities, payment and shop, and runs in parallel with the Router to save time.</p></div></article>
+          <article class="agent-card reveal"><span class="agent-emoji">🗂️</span><div><h3>Catalogue</h3><span class="agent-engine">RapidFuzz + price list</span><p>Checks every product against your catalogue and prices it from your list. Models never set prices.</p></div></article>
+          <article class="agent-card reveal"><span class="agent-emoji">✅</span><div><h3>Verifier</h3><span class="agent-engine">gpt-oss-20b</span><p>A second model re-reads what was said and flags missed items, wrong quantities and ignored corrections.</p></div></article>
+          <article class="agent-card reveal"><span class="agent-emoji">💳</span><div><h3>Credit</h3><span class="agent-engine">Khata ledger rules</span><p>Checks each shop's khata against its credit limit and warns before an order goes over it.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Architecture -->
     <section class="block" id="architecture">
       <div class="wrap">
         <div class="section-head reveal">
           <span class="eyebrow">Architecture</span>
-          <h2>Open models, a human in the loop, and no single point of failure</h2>
-          <p>Each request flows through the pipeline below. If the AI service is rate-limited, a rule-based parser takes over so orders never stop.</p>
+          <h2>Agents, a human in the loop, and no single point of failure</h2>
+          <p>Each message flows through the agent pipeline below. If an AI model is busy, the next one takes over, and rule-based fallbacks keep orders moving even with no AI at all.</p>
         </div>
         <div class="diagram-card reveal">
           <div class="diagram-scroll">
             <svg class="diagram" viewBox="0 0 1080 320" role="img" aria-labelledby="diag-title diag-desc">
               <title id="diag-title">Awaz Order pipeline</title>
-              <desc id="diag-desc">Voice note to Whisper speech-to-text, to an open LLM for order extraction, to catalogue matching, human review, order and khata ledger, and an Urdu reply with optional ElevenLabs voice. If the AI is unavailable, an offline parser feeds catalogue matching. Orders and the ledger are stored in a database.</desc>
+              <desc id="diag-desc">A voice note passes through six agents in order: Listener (Whisper), Router (gpt-oss-20b), Extraction (Qwen then gpt-oss-120b), Catalogue (RapidFuzz and the price list), Verifier (a second model) and Credit (khata limits), then the Reply and Voice agents send an Urdu confirmation. If the AI is busy, offline fallbacks feed the Catalogue agent. A person reviews and confirms every order.</desc>
               <defs>
                 <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#1d3557"/></marker>
                 <marker id="arrow-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#e07a2f"/></marker>
@@ -167,17 +187,17 @@
               <text class="lbl" x="392" y="178">if AI is busy</text>
 
               <!-- main nodes -->
-              <g class="node core"><rect x="10" y="40" width="128" height="86" rx="14"/><text class="t" x="74" y="78" text-anchor="middle">Voice note</text><text class="s" x="74" y="98" text-anchor="middle">Urdu · Punjabi · Eng</text></g>
-              <g class="node ai"><rect x="163" y="40" width="128" height="86" rx="14"/><text class="t" x="227" y="78" text-anchor="middle">Whisper v3</text><text class="s" x="227" y="98" text-anchor="middle">speech → text</text></g>
-              <g class="node ai"><rect x="316" y="40" width="128" height="86" rx="14"/><text class="t" x="380" y="78" text-anchor="middle">Qwen / gpt-oss</text><text class="s" x="380" y="98" text-anchor="middle">text → order JSON</text></g>
-              <g class="node core"><rect x="469" y="40" width="128" height="86" rx="14"/><text class="t" x="533" y="78" text-anchor="middle">Catalogue</text><text class="s" x="533" y="98" text-anchor="middle">match + prices</text></g>
-              <g class="node"><rect x="622" y="40" width="128" height="86" rx="14"/><text class="t" x="686" y="78" text-anchor="middle">Review</text><text class="s" x="686" y="98" text-anchor="middle">“Did you mean…?”</text></g>
-              <g class="node core"><rect x="775" y="40" width="128" height="86" rx="14"/><text class="t" x="839" y="78" text-anchor="middle">Order + khata</text><text class="s" x="839" y="98" text-anchor="middle">ledger updated</text></g>
-              <g class="node ai"><rect x="928" y="40" width="128" height="86" rx="14"/><text class="t" x="992" y="78" text-anchor="middle">Urdu reply</text><text class="s" x="992" y="98" text-anchor="middle">text + ElevenLabs</text></g>
+              <g class="node ai"><rect x="10" y="40" width="128" height="86" rx="14"/><text class="t" x="74" y="72" text-anchor="middle">🎧 Listener</text><text class="s" x="74" y="92" text-anchor="middle">Whisper v3</text><text class="s" x="74" y="108" text-anchor="middle">voice → text</text></g>
+              <g class="node ai"><rect x="163" y="40" width="128" height="86" rx="14"/><text class="t" x="227" y="72" text-anchor="middle">🧭 Router</text><text class="s" x="227" y="92" text-anchor="middle">gpt-oss-20b</text><text class="s" x="227" y="108" text-anchor="middle">order · payment · balance</text></g>
+              <g class="node ai"><rect x="316" y="40" width="128" height="86" rx="14"/><text class="t" x="380" y="72" text-anchor="middle">📦 Extraction</text><text class="s" x="380" y="92" text-anchor="middle">Qwen → gpt-oss</text><text class="s" x="380" y="108" text-anchor="middle">items as JSON</text></g>
+              <g class="node core"><rect x="469" y="40" width="128" height="86" rx="14"/><text class="t" x="533" y="72" text-anchor="middle">🗂️ Catalogue</text><text class="s" x="533" y="92" text-anchor="middle">RapidFuzz</text><text class="s" x="533" y="108" text-anchor="middle">match + prices</text></g>
+              <g class="node ai"><rect x="622" y="40" width="128" height="86" rx="14"/><text class="t" x="686" y="72" text-anchor="middle">✅ Verifier</text><text class="s" x="686" y="92" text-anchor="middle">gpt-oss-20b</text><text class="s" x="686" y="108" text-anchor="middle">second opinion</text></g>
+              <g class="node core"><rect x="775" y="40" width="128" height="86" rx="14"/><text class="t" x="839" y="72" text-anchor="middle">💳 Credit</text><text class="s" x="839" y="92" text-anchor="middle">ledger rules</text><text class="s" x="839" y="108" text-anchor="middle">khata limits</text></g>
+              <g class="node ai"><rect x="928" y="40" width="128" height="86" rx="14"/><text class="t" x="992" y="72" text-anchor="middle">💬 Reply</text><text class="s" x="992" y="92" text-anchor="middle">Urdu text</text><text class="s" x="992" y="108" text-anchor="middle">+ ElevenLabs voice</text></g>
 
               <!-- lower nodes -->
-              <g class="node alt"><rect x="330" y="220" width="250" height="70" rx="14"/><text class="t" x="455" y="251" text-anchor="middle">Offline parser</text><text class="s" x="455" y="270" text-anchor="middle">rules + RapidFuzz · no API needed</text></g>
-              <g class="node"><rect x="760" y="220" width="158" height="70" rx="14"/><text class="t" x="839" y="251" text-anchor="middle">Database</text><text class="s" x="839" y="270" text-anchor="middle">orders · shops · khata</text></g>
+              <g class="node alt"><rect x="330" y="220" width="250" height="70" rx="14"/><text class="t" x="455" y="251" text-anchor="middle">Offline fallbacks</text><text class="s" x="455" y="270" text-anchor="middle">keyword router · offline parser</text></g>
+              <g class="node"><rect x="740" y="220" width="198" height="70" rx="14"/><text class="t" x="839" y="251" text-anchor="middle">👤 Human review</text><text class="s" x="839" y="270" text-anchor="middle">confirm · record payment</text></g>
 
               <!-- travelling data packet -->
               <circle class="packet" r="6">
@@ -186,7 +206,7 @@
             </svg>
           </div>
           <div class="diagram-notes">
-            <div><b>Open-source models</b>Whisper large-v3 for speech; Qwen 3.8 and gpt-oss for extraction, tried in order across separate rate limits.</div>
+            <div><b>Specialised agents</b>Each agent has one job and its own model: Whisper listens, gpt-oss-20b routes and verifies, Qwen and gpt-oss-120b extract.</div>
             <div><b>AI understands, code decides</b>Prices, totals and balances always come from the database — the model can't invent a number.</div>
             <div><b>Designed not to break</b>Cached samples, a model fallback chain and an offline parser keep orders flowing when an API is busy.</div>
           </div>

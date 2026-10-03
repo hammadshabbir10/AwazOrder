@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from app.history import seed_history
-from app.seed import DEMO_USER, PRODUCTS, SHOPS
+from app.seed import CREDIT_LIMITS, DEFAULT_CREDIT_LIMIT, DEMO_USER, PRODUCTS, SHOPS
 
 # Serverless hosts (Vercel) only allow writes under /tmp.
 _DEFAULT_DB = os.path.join(tempfile.gettempdir(), "awaz.db") if os.environ.get("VERCEL") else os.path.join(os.path.dirname(__file__), "..", "awaz.db")
@@ -164,4 +164,4 @@ def get_shops() -> list[dict]:
                FROM shops s LEFT JOIN ledger l ON l.shop_id = s.id
                GROUP BY s.id ORDER BY s.name"""
         ).fetchall()
-    return [dict(r) for r in rows]
+    return [{**dict(r), "credit_limit": CREDIT_LIMITS.get(r["name"], DEFAULT_CREDIT_LIMIT)} for r in rows]

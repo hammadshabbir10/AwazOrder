@@ -322,23 +322,32 @@ $("parse-text").onclick = () => {
 
 /* ================================================================ processing */
 
+const AGENT_ICON = { listener: "🎧", router: "🧭", extractor: "📦", catalogue: "🗂️", verifier: "✅", credit: "💳" };
+const LIVE_AGENTS = [
+  ["listener", "Listener agent", "Whisper turns the voice note into text"],
+  ["router", "Router + Extraction agents", "Decide what the shopkeeper wants and pull out the items, in parallel"],
+  ["catalogue", "Catalogue agent", "Match products and price them from your list"],
+  ["verifier", "Verifier agent", "A second model double-checks the order"],
+  ["credit", "Credit agent", "Check the shop's khata against its limit"],
+];
 const STEPS = {
-  audio: ["Uploading the voice note", "Transcribing with Whisper", "Extracting items with AI", "Matching your catalogue"],
-  text: ["Reading the order", "Extracting items with AI", "Matching your catalogue"],
-  sample: ["Opening the sample order"],
-  note: ["Opening your voice note"],
+  audio: LIVE_AGENTS,
+  text: LIVE_AGENTS.slice(1),
+  sample: [["catalogue", "Opening the sample order", "Pre-processed by the agents earlier"]],
+  note: [["catalogue", "Opening your voice note", "From your history"]],
 };
 
 async function runParse(call, kind, sampleShop = null) {
   setCaptureError("");
-  show("review", false); show("done", false);
+  show("review", false); show("done", false); show("intent-card", false);
   const steps = STEPS[kind];
-  $("steps").innerHTML = steps.map((s) => `<li><span class="dot"></span>${esc(s)}</li>`).join("");
+  $("steps").className = "agent-live";
+  $("steps").innerHTML = steps.map(([key, name, job]) => `<li><span class="trace-icon">${AGENT_ICON[key] || "•"}</span><span>${esc(name)}<small>${esc(job)}</small></span></li>`).join("");
   const items = [...$("steps").children];
   let i = 0;
   const advance = () => { items.forEach((li, j) => { li.classList.toggle("done", j < i); li.classList.toggle("active", j === i); }); };
   advance();
-  const timer = setInterval(() => { if (i < steps.length - 1) { i++; advance(); } }, kind === "audio" ? 900 : 700);
+  const timer = setInterval(() => { if (i < steps.length - 1) { i++; advance(); } }, kind === "audio" ? 1100 : 1000);
   show("processing", true);
   $("processing").scrollIntoView({ behavior: "smooth", block: "center" });
   try {
@@ -377,7 +386,53 @@ function modeBadge(d) {
   return [d.ai_error ? "AI busy · offline parser used" : "Offline parser", "pill warn"];
 }
 
+/* ================================================================ agent trace */
+
+const fmtMs = (ms) => (!ms ? "<1 ms" : ms < 100 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
+
+function renderTrace(listId, totalId, steps, wallMs) {
+  const label = { ok: "", warn: "check", fallback: "fallback", skipped: "skipped" };
+  $(listId).innerHTML = (steps || []).map((s) => `
+    <li class="trace-step ${esc(s.status)}">
+      <span class="trace-icon">${AGENT_ICON[s.key] || "•"}</span>
+      <div>
+        <span class="t-name">${esc(s.name)} agent</span>${s.engine ? `<span class="t-engine">${esc(s.engine)}</span>` : ""}${label[s.status] ? `<span class="t-status">${label[s.status]}</span>` : ""}
+        <div class="t-summary">${esc(s.summary)}</div>
+        ${s.notes && s.notes.length ? `<ul class="t-notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+      </div>
+      <span class="t-ms">${s.status === "skipped" ? "—" : fmtMs(s.ms)}</span>
+    </li>`).join("");
+  const ran = (steps || []).filter((s) => s.status !== "skipped").length;
+  // Wall-clock time, not a sum: the Router and Extraction agents run in parallel.
+  $(totalId).textContent = steps && steps.length ? `· ${ran} agent${ran === 1 ? "" : "s"} ran${wallMs ? ` · finished in ${(wallMs / 1000).toFixed(1)} s` : ""}` : "";
+}
+
+/* ================================================================ credit check (Credit agent, re-run when the shop changes) */
+
+function creditCheck(shop, amount, kind = "order") {
+  const after = kind === "order" ? shop.balance + amount : shop.balance - amount;
+  const pct = shop.credit_limit ? Math.round((after / shop.credit_limit) * 100) : 0;
+  return { after, pct, status: pct > 100 ? "over" : pct > 80 ? "warn" : "ok", limit: shop.credit_limit, balance: shop.balance };
+}
+
+function updateCreditAlert() {
+  const el = $("credit-alert");
+  const shop = state.shops.find((s) => s.id === Number($("shop").value));
+  const by = Object.fromEntries(state.products.map((p) => [p.sku, p]));
+  const total = (state.draft?.lines || []).reduce((t, l) => t + by[l.sku].price * l.quantity, 0);
+  if (!shop || $("payment").value === "cash" || !total) { show("credit-alert", false); return; }
+  const c = creditCheck(shop, total);
+  if (c.status === "ok") { show("credit-alert", false); return; }
+  el.className = `alert ${c.status === "over" ? "error" : "warn"}`;
+  el.textContent = c.status === "over"
+    ? `💳 Credit agent: this order takes ${shop.name} to ${pkr(c.after)}, over its ${pkr(c.limit)} khata limit (${c.pct}%). Ask for a payment first, or take this order as cash.`
+    : `💳 Credit agent: ${shop.name} will owe ${pkr(c.after)}, ${c.pct}% of its ${pkr(c.limit)} khata limit.`;
+  show("credit-alert", true);
+}
+["shop", "payment"].forEach((id) => $(id).addEventListener("change", updateCreditAlert));
+
 function renderDraft(d, kind, sampleShop) {
+  if (d.intent && d.intent !== "order") { renderIntent(d, kind); return; }
   state.draft = {
     transcript: d.transcript,
     note_id: d.note_id || null,
@@ -416,8 +471,120 @@ function renderDraft(d, kind, sampleShop) {
   $("review-error").textContent = "";
 
   renderLines();
+  renderTrace("review-trace", "review-trace-total", d.agents, d.timing && d.timing.total_ms);
+  show("review-trace-wrap", Boolean(d.agents && d.agents.length));
   show("review", true);
   $("review").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ================================================================ payment reports, balance questions, other */
+
+function shopOptions(selected) {
+  return `<option value="">Choose shop…</option>` + state.shops.map((s) => `<option value="${s.id}"${s.id === selected ? " selected" : ""}>${esc(s.name)}</option>`).join("");
+}
+
+function meter(check) {
+  const pct = Math.min(100, Math.max(0, check.pct));
+  return `<div class="meter-bar ${check.status === "ok" ? "" : check.status}" role="img" aria-label="${check.pct}% of credit limit used"><div style="width:${pct}%"></div></div>
+    <span class="muted" style="font-size:13px">${check.pct}% of the ${pkr(check.limit)} khata limit</span>`;
+}
+
+function renderIntent(d, kind) {
+  state.draft = { transcript: d.transcript, note_id: d.note_id || null };
+  const titles = { payment: "Payment reported", balance: "Balance question", other: "This doesn't look like an order" };
+  const subs = {
+    payment: "The Router agent heard the shopkeeper say they've paid. Check the amount and record it in their khata.",
+    balance: "The Router agent heard the shopkeeper asking how much they owe. Prepare an Urdu reply with their balance.",
+    other: "The Router agent couldn't find an order, payment or balance question in this message.",
+  };
+  $("intent-title").textContent = titles[d.intent] || "Message";
+  $("intent-sub").textContent = subs[d.intent] || "";
+  const [label, cls] = modeBadge(d);
+  $("intent-badge").textContent = label;
+  $("intent-badge").className = cls;
+  const t = d.timing;
+  $("intent-timing").textContent = t && t.total_ms ? `Processed in ${(t.total_ms / 1000).toFixed(1)} s` : "";
+  show("intent-timing", Boolean(t && t.total_ms && !d.reopened));
+  $("intent-transcript").textContent = d.transcript;
+  $("intent-transcript").className = hasUrdu(d.transcript) ? "urdu" : "";
+  const audioUrl = kind === "audio" ? state.draftAudioUrl : kind === "note" && d.has_audio ? `/api/notes/${d.note_id}/audio` : null;
+  if (audioUrl) { $("intent-audio").src = audioUrl; show("intent-audio", true); } else { $("intent-audio").removeAttribute("src"); show("intent-audio", false); }
+  $("intent-error").textContent = "";
+  renderTrace("intent-trace", "intent-trace-total", d.agents, d.timing && d.timing.total_ms);
+
+  const body = $("intent-body");
+  const asOrder = `<button class="btn" id="as-order">Treat it as an order instead</button>`;
+  if (d.intent === "payment") {
+    body.innerHTML = `
+      <div class="intent-grid">
+        <label class="field"><span>Shop</span><select id="pi-shop">${shopOptions(d.shop_id)}</select></label>
+        <label class="field"><span>Amount received (Rs)</span><input id="pi-amount" type="number" min="1" step="1" value="${d.amount || ""}" /></label>
+      </div>
+      <div id="pi-info"></div>
+      <div class="intent-actions"><button class="btn primary" id="pi-record">Record payment in khata</button>${asOrder}</div>`;
+    const info = () => {
+      const shop = state.shops.find((s) => s.id === Number($("pi-shop").value));
+      const amount = Number($("pi-amount").value) || 0;
+      if (!shop) { $("pi-info").innerHTML = `<span class="muted">Choose the shop to see its khata.</span>`; return; }
+      const c = creditCheck(shop, amount, "payment");
+      $("pi-info").innerHTML = `<div class="muted" style="font-size:14px">💳 ${esc(shop.name)} owes <strong>${pkr(shop.balance)}</strong>${amount ? ` → <strong>${pkr(c.after)}</strong> after this payment` : ""}</div>${meter(c)}`;
+    };
+    $("pi-shop").onchange = info; $("pi-amount").oninput = info; info();
+    $("pi-record").onclick = async () => {
+      const shopId = Number($("pi-shop").value), amount = Math.round(Number($("pi-amount").value));
+      if (!shopId) { $("intent-error").textContent = "Choose which shop paid."; return; }
+      if (!amount || amount < 1) { $("intent-error").textContent = "Enter the amount received."; return; }
+      $("pi-record").disabled = true;
+      try {
+        const res = await postJson(`/api/shops/${shopId}/payments`, { amount, note: "Payment reported by voice note" });
+        state.shops = await api("/api/shops");
+        showReplyCard({ title: `${pkr(amount)} received from ${res.shop}`, sub: `Recorded in khata · balance now ${pkr(res.balance)}`, ...res });
+        refreshStats();
+      } catch (e) { $("intent-error").textContent = e.message; $("pi-record").disabled = false; }
+    };
+  } else if (d.intent === "balance") {
+    body.innerHTML = `
+      <label class="field" style="max-width:360px"><span>Shop</span><select id="bi-shop">${shopOptions(d.shop_id)}</select></label>
+      <div id="bi-info"></div>
+      <div class="intent-actions"><button class="btn primary" id="bi-reply">Prepare Urdu reply</button>${asOrder}</div>`;
+    const info = () => {
+      const shop = state.shops.find((s) => s.id === Number($("bi-shop").value));
+      if (!shop) { $("bi-info").innerHTML = `<span class="muted">Choose the shop to see what it owes.</span>`; return; }
+      const c = creditCheck(shop, 0, "balance");
+      $("bi-info").innerHTML = `<div class="balance-figure">${pkr(shop.balance)}</div><span class="muted">owed by ${esc(shop.name)}</span>${meter(c)}`;
+    };
+    $("bi-shop").onchange = info; info();
+    $("bi-reply").onclick = async () => {
+      const shopId = Number($("bi-shop").value);
+      if (!shopId) { $("intent-error").textContent = "Choose the shop first."; return; }
+      try {
+        const res = await postJson("/api/replies/balance", { shop_id: shopId });
+        showReplyCard({ title: `Balance reply for ${res.shop}`, sub: `Owes ${pkr(res.balance)} of a ${pkr(res.limit)} limit`, ...res });
+      } catch (e) { $("intent-error").textContent = e.message; }
+    };
+  } else {
+    body.innerHTML = `<div class="intent-actions">${asOrder}</div>`;
+  }
+  $("as-order").onclick = () => runParse(() => postJson("/api/parse/text", { text: d.transcript, intent: "order" }), "text");
+  show("intent-card", true);
+  $("intent-card").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/** The confirmation card, reused for payment receipts and balance replies. */
+function showReplyCard(res) {
+  show("intent-card", false);
+  state.lastOrder = { speech_token: res.speech_token };
+  $("done-title").textContent = res.title;
+  $("done-sub").textContent = res.sub;
+  $("reply").textContent = res.reply;
+  const phone = (res.phone || "").replace(/\D/g, "").replace(/^0/, "92");
+  $("wa-link").href = `https://wa.me/${phone}?text=${encodeURIComponent(res.reply)}`;
+  show("pay-pending", false);
+  $("tts-audio").removeAttribute("src");
+  show("tts-audio", false);
+  $("tts-hint").textContent = state.status?.tts ? "" : "Add ELEVENLABS_API_KEY to hear this reply in an Urdu voice.";
+  show("done", true);
+  $("done").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 const productOptions = (selected) => state.products.map((p) => `<option value="${esc(p.sku)}"${p.sku === selected ? " selected" : ""}>${esc(p.name)}</option>`).join("");
@@ -433,7 +600,8 @@ function renderLines() {
     return `<tr class="${l.needs_review ? "review-row" : ""}">
       <td><select class="sku" data-i="${i}" aria-label="Product">${productOptions(l.sku)}</select>
         ${l.spoken ? `<div class="heard">Heard: <span dir="auto">“${esc(l.spoken)}”</span>${conf !== null ? `<span class="conf ${conf < 75 ? "low" : ""}">${conf}%</span>` : ""}</div>` : ""}
-        ${alts ? `<div class="alts">Did you mean ${alts}</div>` : ""}</td>
+        ${alts ? `<div class="alts">Did you mean ${alts}</div>` : ""}
+        ${l.review_reason ? `<div class="review-reason">✅ ${esc(l.review_reason)}</div>` : ""}</td>
       <td><input type="number" class="qty" data-i="${i}" min="0.5" max="10000" step="0.5" value="${l.quantity}" aria-label="Quantity" /></td>
       <td>${esc(p.unit)}</td>
       <td>${pkr(p.price)}</td>
@@ -442,8 +610,9 @@ function renderLines() {
     </tr>`;
   }).join("");
   $("draft-total").textContent = pkr(lines.reduce((s, l) => s + by[l.sku].price * l.quantity, 0));
+  updateCreditAlert();
 
-  const resolve = (l) => { l.needs_review = false; l.alternatives = []; };
+  const resolve = (l) => { l.needs_review = false; l.alternatives = []; l.review_reason = null; };
   document.querySelectorAll("#lines .sku").forEach((el) => (el.onchange = () => { const l = lines[el.dataset.i]; l.sku = el.value; resolve(l); renderLines(); }));
   document.querySelectorAll("#lines .qty").forEach((el) => (el.onchange = () => {
     const v = Number(el.value);

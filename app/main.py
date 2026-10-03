@@ -259,13 +259,15 @@ def delete_note(note_id: int, user: dict = Depends(current_user)):
 
 class TextIn(BaseModel):
     text: str = Field(min_length=3, max_length=1500)
+    # Set when the user overrides the Router agent ("treat this as an order").
+    intent: str | None = Field(default=None, pattern="^(order|payment|balance|other)$")
 
 
 @app.post("/api/parse/text")
 def parse_text(body: TextIn, user: dict = Depends(current_user)):
     # Over the hourly limit, a typed order is still parsed, just offline.
     use_ai = bool(ai.providers()) and within_rate(user["id"])
-    draft = pipeline.parse_text(body.text.strip(), use_ai=use_ai)
+    draft = pipeline.parse_text(body.text.strip(), use_ai=use_ai, intent=body.intent)
     draft["note_id"] = _save_note(user["id"], "text", draft)
     return draft
 
@@ -569,14 +571,33 @@ class PaymentIn(BaseModel):
 
 @app.post("/api/shops/{shop_id}/payments")
 def record_payment(shop_id: int, body: PaymentIn, user: dict = Depends(current_user)):
-    if not any(s["id"] == shop_id for s in get_shops()):
+    shop = next((s for s in get_shops() if s["id"] == shop_id), None)
+    if not shop:
         raise HTTPException(404, "Unknown shop.")
     with connect() as conn:
         conn.execute(
             "INSERT INTO ledger (shop_id, created_at, kind, amount, note) VALUES (?, ?, 'payment', ?, ?)",
             (shop_id, now(), -body.amount, body.note),
         )
-    return {"ok": True}
+        balance = conn.execute("SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE shop_id = ?", (shop_id,)).fetchone()[0]
+    reply, spoken = pipeline.payment_receipt(shop["name"], body.amount, balance, user["name"])
+    return {"ok": True, "balance": balance, "reply": reply, "speech_token": sign_text(spoken),
+            "shop": shop["name"], "phone": shop["phone"]}
+
+
+class BalanceIn(BaseModel):
+    shop_id: int
+
+
+@app.post("/api/replies/balance")
+def balance_reply(body: BalanceIn, user: dict = Depends(current_user)):
+    """Urdu answer to 'how much do I owe?' (text + voice token)."""
+    shop = next((s for s in get_shops() if s["id"] == body.shop_id), None)
+    if not shop:
+        raise HTTPException(404, "Unknown shop.")
+    reply, spoken = pipeline.balance_reply(shop["name"], shop["balance"], user["name"])
+    return {"balance": shop["balance"], "limit": shop["credit_limit"], "reply": reply,
+            "speech_token": sign_text(spoken), "shop": shop["name"], "phone": shop["phone"]}
 
 
 @app.get("/api/dashboard")

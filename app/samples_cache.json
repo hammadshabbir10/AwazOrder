@@ -6,99 +6,126 @@
         "sku": "SHAN-BIRYANI",
         "name": "Shan Biryani Masala 50g",
         "unit": "carton",
-        "spoken": "Shan biryani masala",
+        "spoken": "2 carton Shan biryani masala",
         "quantity": 2,
         "price": 9500,
         "line_total": 19000,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "DALDA-TIN",
         "name": "Dalda Banaspati Ghee 5kg Tin",
         "unit": "tin",
-        "spoken": "Dalda",
+        "spoken": "5 tin Dalda",
         "quantity": 5,
         "price": 2950,
         "line_total": 14750,
-        "confidence": 0.9,
-        "needs_review": true,
-        "alternatives": [
-          {
-            "sku": "DALDA-OIL",
-            "name": "Dalda Cooking Oil 1L Pouch"
-          }
-        ]
+        "confidence": 0.99,
+        "needs_review": false,
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "SHAN-KARAHI",
         "name": "Shan Chicken Karahi Masala 50g",
         "unit": "carton",
-        "spoken": "karahi masala",
+        "spoken": "3 carton karahi masala",
         "quantity": 3,
         "price": 8800,
         "line_total": 26400,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       }
     ],
     "unmatched": [],
     "payment": "credit",
     "shop_id": 1,
     "total": 60150,
-    "mode": "ai",
-    "provider": "groq:qwen/qwen3.8-27b",
-    "ai_error": null
-  },
-  "s2": {
-    "transcript": "بھائی مدینہ کریانہ کے لیے چار پیکٹ ٹپال دانےدار، دو کارٹن ملک پیک اور ایک بوری چینی بھیج دیں۔ ادائیگی نقد کریں گے۔",
-    "lines": [
-      {
-        "sku": "TAPAL-DANEDAR",
-        "name": "Tapal Danedar Tea 950g",
-        "unit": "pack",
-        "spoken": "چار پیکٹ ٹپال دانےدار",
-        "quantity": 4,
-        "price": 1650,
-        "line_total": 6600,
-        "confidence": 1.0,
-        "needs_review": false,
-        "alternatives": []
-      },
-      {
-        "sku": "MILKPAK-1L",
-        "name": "Nestle Milkpak 1L",
-        "unit": "carton",
-        "spoken": "دو کارٹن ملک پیک",
-        "quantity": 2,
-        "price": 3900,
-        "line_total": 7800,
-        "confidence": 1.0,
-        "needs_review": false,
-        "alternatives": []
-      },
-      {
-        "sku": "SUGAR-50KG",
-        "name": "Sugar 50kg",
-        "unit": "bori",
-        "spoken": "ایک بوری چینی",
-        "quantity": 1,
-        "price": 7800,
-        "line_total": 7800,
-        "confidence": 1.0,
-        "needs_review": false,
-        "alternatives": []
-      }
-    ],
-    "unmatched": [],
-    "payment": "cash",
-    "shop_id": null,
-    "total": 22200,
+    "credit": {
+      "shop_id": 1,
+      "shop": "Bismillah General Store",
+      "balance": 799563,
+      "limit": 1200000,
+      "after": 859713,
+      "status": "ok",
+      "used_pct": 72
+    },
+    "intent": "order",
+    "route": {
+      "intent": "order",
+      "confidence": 0.0,
+      "amount": null,
+      "shop_hint": null,
+      "reason": "order goods"
+    },
     "mode": "ai",
     "provider": "groq:openai/gpt-oss-120b",
-    "ai_error": null
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "New order (70% sure)",
+        "notes": [
+          "order goods"
+        ],
+        "ms": 1581
+      },
+      {
+        "key": "extractor",
+        "name": "Extraction",
+        "job": "Pulls out items, quantities, payment and shop",
+        "engine": "openai/gpt-oss-120b",
+        "status": "ok",
+        "summary": "3 items · payment khata",
+        "notes": [
+          "Ran in parallel with the Router"
+        ],
+        "ms": 3564
+      },
+      {
+        "key": "catalogue",
+        "name": "Catalogue",
+        "job": "Matches products and prices them from the database",
+        "engine": "RapidFuzz + price list",
+        "status": "ok",
+        "summary": "3 lines priced · Rs 60,150",
+        "notes": [],
+        "ms": 5
+      },
+      {
+        "key": "verifier",
+        "name": "Verifier",
+        "job": "Double-checks the order against what was said",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Order matches what was said",
+        "notes": [],
+        "ms": 1458
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "ok",
+        "summary": "Rs 859,713 after this order · 72% of limit",
+        "notes": [],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 5031,
+      "total_ms": 5031
+    }
   },
   "s3": {
     "transcript": "Faisal Super Store. Ek carton Lifebuoy, do carton Surf Excel, teen carton sabun, aur 1 carton Colgate. Khata mein likh do.",
@@ -107,13 +134,23 @@
         "sku": "LIFEBUOY",
         "name": "Lifebuoy Soap 110g",
         "unit": "carton",
-        "spoken": "Ek carton Lifebuoy",
-        "quantity": 1,
+        "spoken": "Ek carton Lifebuoy; teen carton sabun",
+        "quantity": 4,
         "price": 8200,
-        "line_total": 8200,
-        "confidence": 1.0,
-        "needs_review": false,
-        "alternatives": []
+        "line_total": 32800,
+        "confidence": 0.8,
+        "needs_review": true,
+        "alternatives": [
+          {
+            "sku": "LUX",
+            "name": "Lux Soap 110g"
+          },
+          {
+            "sku": "SAFEGUARD",
+            "name": "Safeguard Soap 115g"
+          }
+        ],
+        "review_reason": null
       },
       {
         "sku": "SURF-EXCEL",
@@ -123,21 +160,10 @@
         "quantity": 2,
         "price": 6600,
         "line_total": 13200,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
-      },
-      {
-        "sku": "LIFEBUOY",
-        "name": "Lifebuoy Soap 110g",
-        "unit": "carton",
-        "spoken": "teen carton sabun",
-        "quantity": 3,
-        "price": 8200,
-        "line_total": 24600,
-        "confidence": 1.0,
-        "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "COLGATE",
@@ -147,18 +173,100 @@
         "quantity": 1,
         "price": 9600,
         "line_total": 9600,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       }
     ],
     "unmatched": [],
     "payment": "credit",
     "shop_id": 4,
     "total": 55600,
+    "credit": {
+      "shop_id": 4,
+      "shop": "Faisal Super Store",
+      "balance": 1677850,
+      "limit": 2000000,
+      "after": 1733450,
+      "status": "warn",
+      "used_pct": 87
+    },
+    "intent": "order",
+    "route": {
+      "intent": "order",
+      "confidence": 0.95,
+      "amount": null,
+      "shop_hint": "Faisal Super Store",
+      "reason": "order goods"
+    },
     "mode": "ai",
     "provider": "groq:openai/gpt-oss-120b",
-    "ai_error": null
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "New order (95% sure)",
+        "notes": [
+          "order goods"
+        ],
+        "ms": 1799
+      },
+      {
+        "key": "extractor",
+        "name": "Extraction",
+        "job": "Pulls out items, quantities, payment and shop",
+        "engine": "openai/gpt-oss-120b",
+        "status": "ok",
+        "summary": "3 items · payment khata",
+        "notes": [
+          "Ran in parallel with the Router"
+        ],
+        "ms": 5073
+      },
+      {
+        "key": "catalogue",
+        "name": "Catalogue",
+        "job": "Matches products and prices them from the database",
+        "engine": "RapidFuzz + price list",
+        "status": "ok",
+        "summary": "3 lines priced · Rs 55,600",
+        "notes": [
+          "1 line(s) uncertain, highlighted for review"
+        ],
+        "ms": 3
+      },
+      {
+        "key": "verifier",
+        "name": "Verifier",
+        "job": "Double-checks the order against what was said",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Order matches what was said",
+        "notes": [],
+        "ms": 2088
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "warn",
+        "summary": "Rs 1,733,450 after this order · 87% of limit",
+        "notes": [
+          "Close to the credit limit"
+        ],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 7168,
+      "total_ms": 7168
+    }
   },
   "s4": {
     "transcript": "Chaudhry Mart ke liye 10 carton Pepsi, 5 carton Sprite, 6 carton Prince biscuit aur 4 carton Slanty. Cash payment.",
@@ -171,9 +279,10 @@
         "quantity": 10,
         "price": 1100,
         "line_total": 11000,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "SPRITE-1.5L",
@@ -183,9 +292,10 @@
         "quantity": 5,
         "price": 1100,
         "line_total": 5500,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "LU-PRINCE",
@@ -195,9 +305,10 @@
         "quantity": 6,
         "price": 1100,
         "line_total": 6600,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "KOLSON-SLANTY",
@@ -207,18 +318,96 @@
         "quantity": 4,
         "price": 1300,
         "line_total": 5200,
-        "confidence": 1.0,
+        "confidence": 0.99,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       }
     ],
     "unmatched": [],
     "payment": "cash",
     "shop_id": 6,
     "total": 28300,
+    "credit": {
+      "shop_id": 6,
+      "shop": "Chaudhry Mart",
+      "balance": 449225,
+      "limit": 750000,
+      "after": 477525,
+      "status": "ok",
+      "used_pct": 64
+    },
+    "intent": "order",
+    "route": {
+      "intent": "order",
+      "confidence": 0.95,
+      "amount": null,
+      "shop_hint": "Chaudhry Mart",
+      "reason": "Order with cash payment"
+    },
     "mode": "ai",
     "provider": "groq:openai/gpt-oss-120b",
-    "ai_error": null
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "New order (95% sure)",
+        "notes": [
+          "Order with cash payment"
+        ],
+        "ms": 1708
+      },
+      {
+        "key": "extractor",
+        "name": "Extraction",
+        "job": "Pulls out items, quantities, payment and shop",
+        "engine": "openai/gpt-oss-120b",
+        "status": "ok",
+        "summary": "4 items · payment cash",
+        "notes": [
+          "Ran in parallel with the Router"
+        ],
+        "ms": 3476
+      },
+      {
+        "key": "catalogue",
+        "name": "Catalogue",
+        "job": "Matches products and prices them from the database",
+        "engine": "RapidFuzz + price list",
+        "status": "ok",
+        "summary": "4 lines priced · Rs 28,300",
+        "notes": [],
+        "ms": 6
+      },
+      {
+        "key": "verifier",
+        "name": "Verifier",
+        "job": "Double-checks the order against what was said",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Order matches what was said",
+        "notes": [],
+        "ms": 1372
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "ok",
+        "summary": "Cash order · Chaudhry Mart owes Rs 449,225",
+        "notes": [],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 4858,
+      "total_ms": 4858
+    }
   },
   "s5": {
     "transcript": "Usman Karyana. 3 bori sella chawal, 5 bag atta, 20 kilo daal chana aur 10 kilo masoor. Udhar.",
@@ -233,7 +422,8 @@
         "line_total": 28500,
         "confidence": 1.0,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "ATTA-20KG",
@@ -245,7 +435,8 @@
         "line_total": 14500,
         "confidence": 1.0,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "DAAL-CHANA",
@@ -257,7 +448,8 @@
         "line_total": 5800,
         "confidence": 1.0,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       },
       {
         "sku": "DAAL-MASOOR",
@@ -269,15 +461,338 @@
         "line_total": 3300,
         "confidence": 1.0,
         "needs_review": false,
-        "alternatives": []
+        "alternatives": [],
+        "review_reason": null
       }
     ],
     "unmatched": [],
     "payment": "credit",
     "shop_id": 5,
     "total": 52100,
+    "credit": {
+      "shop_id": 5,
+      "shop": "Usman Karyana",
+      "balance": 746625,
+      "limit": 800000,
+      "after": 798725,
+      "status": "warn",
+      "used_pct": 100
+    },
+    "intent": "order",
+    "route": {
+      "intent": "order",
+      "confidence": 0.99,
+      "amount": null,
+      "shop_hint": "Usman Karyana",
+      "reason": "order request"
+    },
     "mode": "ai",
     "provider": "groq:openai/gpt-oss-120b",
-    "ai_error": null
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "New order (99% sure)",
+        "notes": [
+          "order request"
+        ],
+        "ms": 1425
+      },
+      {
+        "key": "extractor",
+        "name": "Extraction",
+        "job": "Pulls out items, quantities, payment and shop",
+        "engine": "openai/gpt-oss-120b",
+        "status": "ok",
+        "summary": "4 items · payment khata",
+        "notes": [
+          "Ran in parallel with the Router"
+        ],
+        "ms": 3376
+      },
+      {
+        "key": "catalogue",
+        "name": "Catalogue",
+        "job": "Matches products and prices them from the database",
+        "engine": "RapidFuzz + price list",
+        "status": "ok",
+        "summary": "4 lines priced · Rs 52,100",
+        "notes": [],
+        "ms": 6
+      },
+      {
+        "key": "verifier",
+        "name": "Verifier",
+        "job": "Double-checks the order against what was said",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Order matches what was said",
+        "notes": [],
+        "ms": 1826
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "warn",
+        "summary": "Rs 798,725 after this order · 100% of limit",
+        "notes": [
+          "Close to the credit limit"
+        ],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 5210,
+      "total_ms": 5210
+    }
+  },
+  "s6": {
+    "transcript": "Assalam o alaikum, Usman Karyana se bol raha hoon. Bhai bees hazar rupay Easypaisa kar diye hain, khaate mein jama kar lein.",
+    "lines": [],
+    "unmatched": [],
+    "payment": "unknown",
+    "shop_id": 5,
+    "total": 0,
+    "amount": 20000,
+    "credit": {
+      "shop_id": 5,
+      "shop": "Usman Karyana",
+      "balance": 746625,
+      "limit": 800000,
+      "after": 726625,
+      "status": "warn",
+      "used_pct": 91
+    },
+    "intent": "payment",
+    "route": {
+      "intent": "payment",
+      "confidence": 0.99,
+      "amount": 20000,
+      "shop_hint": "Usman Karyana",
+      "reason": "payment sent"
+    },
+    "mode": "ai",
+    "provider": "openai/gpt-oss-20b",
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Payment report (99% sure)",
+        "notes": [
+          "payment sent"
+        ],
+        "ms": 1382
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "warn",
+        "summary": "Rs 726,625 after this payment · 91% of limit",
+        "notes": [
+          "Still above 80% of the credit limit after this payment"
+        ],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 3059,
+      "total_ms": 3059
+    }
+  },
+  "s7": {
+    "transcript": "Bhai Chaudhry Mart se. Zara bata dein mera abhi kitna baqaya hai?",
+    "lines": [],
+    "unmatched": [],
+    "payment": "unknown",
+    "shop_id": 6,
+    "total": 0,
+    "credit": {
+      "shop_id": 6,
+      "shop": "Chaudhry Mart",
+      "balance": 449225,
+      "limit": 750000,
+      "after": 449225,
+      "status": "ok",
+      "used_pct": 60
+    },
+    "intent": "balance",
+    "route": {
+      "intent": "balance",
+      "confidence": 0.9,
+      "amount": null,
+      "shop_hint": "Chaudhry Mart",
+      "reason": "balance query"
+    },
+    "mode": "ai",
+    "provider": "openai/gpt-oss-20b",
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Balance question (90% sure)",
+        "notes": [
+          "balance query"
+        ],
+        "ms": 1101
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "ok",
+        "summary": "Chaudhry Mart owes Rs 449,225 of Rs 750,000 limit",
+        "notes": [],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 2252,
+      "total_ms": 2252
+    }
+  },
+  "s2": {
+    "transcript": "بھائی مدینہ کریانہ کے لیے چار پیکٹ ٹپال دانےدار، دو کارٹن ملک پیک اور ایک بوری چینی بھیج دیں۔ ادائیگی نقد کریں گے۔",
+    "lines": [
+      {
+        "sku": "TAPAL-DANEDAR",
+        "name": "Tapal Danedar Tea 950g",
+        "unit": "pack",
+        "spoken": "چار پیکٹ ٹپال دانےدار",
+        "quantity": 4,
+        "price": 1650,
+        "line_total": 6600,
+        "confidence": 0.95,
+        "needs_review": false,
+        "alternatives": [],
+        "review_reason": null
+      },
+      {
+        "sku": "MILKPAK-1L",
+        "name": "Nestle Milkpak 1L",
+        "unit": "carton",
+        "spoken": "دو کارٹن ملک پیک",
+        "quantity": 2,
+        "price": 3900,
+        "line_total": 7800,
+        "confidence": 0.95,
+        "needs_review": false,
+        "alternatives": [],
+        "review_reason": null
+      },
+      {
+        "sku": "SUGAR-50KG",
+        "name": "Sugar 50kg",
+        "unit": "bori",
+        "spoken": "ایک بوری چینی",
+        "quantity": 1,
+        "price": 7800,
+        "line_total": 7800,
+        "confidence": 0.95,
+        "needs_review": false,
+        "alternatives": [],
+        "review_reason": null
+      }
+    ],
+    "unmatched": [],
+    "payment": "cash",
+    "shop_id": 2,
+    "total": 22200,
+    "credit": {
+      "shop_id": 2,
+      "shop": "Madina Karyana",
+      "balance": 905075,
+      "limit": 1000000,
+      "after": 927275,
+      "status": "ok",
+      "used_pct": 93
+    },
+    "intent": "order",
+    "route": {
+      "intent": "order",
+      "confidence": 0.95,
+      "amount": null,
+      "shop_hint": "مدینہ کریانہ",
+      "reason": "order with payment mention"
+    },
+    "mode": "ai",
+    "provider": "groq:openai/gpt-oss-120b",
+    "ai_error": null,
+    "agents": [
+      {
+        "key": "router",
+        "name": "Router",
+        "job": "Works out what the shopkeeper wants",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "New order (95% sure)",
+        "notes": [
+          "order with payment mention"
+        ],
+        "ms": 1274
+      },
+      {
+        "key": "extractor",
+        "name": "Extraction",
+        "job": "Pulls out items, quantities, payment and shop",
+        "engine": "openai/gpt-oss-120b",
+        "status": "ok",
+        "summary": "3 items · payment cash",
+        "notes": [
+          "Ran in parallel with the Router"
+        ],
+        "ms": 3528
+      },
+      {
+        "key": "catalogue",
+        "name": "Catalogue",
+        "job": "Matches products and prices them from the database",
+        "engine": "RapidFuzz + price list",
+        "status": "ok",
+        "summary": "3 lines priced · Rs 22,200",
+        "notes": [],
+        "ms": 5
+      },
+      {
+        "key": "verifier",
+        "name": "Verifier",
+        "job": "Double-checks the order against what was said",
+        "engine": "openai/gpt-oss-20b",
+        "status": "ok",
+        "summary": "Order matches what was said",
+        "notes": [],
+        "ms": 1253
+      },
+      {
+        "key": "credit",
+        "name": "Credit",
+        "job": "Checks the shop's khata against its credit limit",
+        "engine": "khata ledger rules",
+        "status": "ok",
+        "summary": "Cash order · Madina Karyana owes Rs 905,075",
+        "notes": [],
+        "ms": 0
+      }
+    ],
+    "timing": {
+      "extract_ms": 4791,
+      "total_ms": 4791
+    }
   }
 }

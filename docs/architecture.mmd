@@ -1,5 +1,5 @@
 ---
-title: Awaz Order architecture
+title: Awaz Order multi-agent architecture
 config:
   look: classic
   layout: dagre
@@ -12,108 +12,91 @@ config:
   flowchart:
     curve: basis
     htmlLabels: true
-    wrappingWidth: 240
+    wrappingWidth: 260
     nodeSpacing: 45
-    rankSpacing: 55
+    rankSpacing: 50
     padding: 12
 ---
 flowchart TD
     subgraph CLIENT["1 · Client: web app, desktop and mobile"]
         direction TB
-        LAND["Landing page"] --> LOGIN["Sign in: demo account, signed session cookie"]
-        LOGIN --> UI["Order desk: record, upload or type an order"]
-        UI --> VAL["Client validation: mic permission, 1.5 to 30 s, silence check, file type and size"]
+        UI["Order desk: record, upload or type a WhatsApp-style message, or open a cached sample"]
+        VAL["Client validation: mic permission, 1.5 to 30 s, silence check, file type and size"]
     end
 
     subgraph API["2 · FastAPI backend"]
-        GUARD["Server checks: auth, format, size, duration, rate limit per user"]
-        SAMPLE["Sample cache: pre-processed demo orders, no API call"]
+        GUARD["Server checks: signed session, format, size, duration, rate limit"]
     end
 
-    subgraph AI["3 · AI pipeline: open models with a fallback chain"]
-        ASR1["Whisper large-v3: Urdu, brand-name prompt"]
-        ASR2["Whisper large-v3 turbo"]
-        SIL{"Speech detected?"}
-        RETRY["Ask the user to re-record"]
-        LLM1["Qwen 3.8 27B: catalogue-constrained JSON extraction"]
-        LLM2["gpt-oss-120b"]
-        OFF["Offline parser: Urdu number words, units, RapidFuzz, no API"]
+    subgraph AGENTS["3 · Multi-agent pipeline: one job per agent, every step traced"]
+        L["🎧 Listener agent<br/>Whisper large-v3, then turbo"]
+        R{"🧭 Router agent<br/>gpt-oss-20b<br/>order, payment, balance or other?"}
+        E["📦 Extraction agent · Qwen 3.8, then gpt-oss-120b<br/>items, quantities, payment, shop<br/>runs in parallel with the Router"]
+        C["🗂️ Catalogue agent · RapidFuzz + price list<br/>validates SKUs, prices from the database"]
+        V["✅ Verifier agent · gpt-oss-20b<br/>second opinion: missed items, wrong quantities, ignored corrections"]
+        K["💳 Credit agent · ledger rules<br/>khata balance vs the shop's credit limit"]
+        FB["Fallbacks when AI is busy:<br/>keyword router, offline parser"]
     end
 
-    subgraph LOGIC["4 · Deterministic business logic: AI understands, code decides"]
-        MATCH["Catalogue validation: re-match unknown SKUs, prices from database"]
-        CONF{"Every line confident?"}
-        REVIEW["Human review: highlighted lines, did-you-mean suggestions"]
-        QUICK["One-tap confirm"]
-        ORDER["Create order and price lines"]
-        LEDGER["Khata ledger: credit entries and payments"]
-        REPLY["Urdu WhatsApp reply text"]
-        SPOKEN["Spoken text: Urdu names, numbers as words"]
+    subgraph HUMAN["4 · Human in the loop"]
+        REVIEW["Order review: highlighted lines, verifier notes, credit alert"]
+        PAY["Payment report: confirm the amount, record in khata"]
+        BAL["Balance question: show what the shop owes"]
     end
 
-    subgraph OUT["5 · Output"]
-        TTS["ElevenLabs eleven_v3: Urdu voice, cached per order"]
+    subgraph OUT["5 · Reply agents"]
+        ORDER["Create order, update khata"]
+        REPLY["💬 Reply agent<br/>Urdu WhatsApp text, numbers in words for speech"]
+        VOICE["🔊 Voice agent<br/>ElevenLabs eleven_v3 Urdu, signed and cached"]
         SHOP["Shopkeeper receives the confirmation: text and voice note"]
     end
 
-    subgraph STORE["6 · Storage"]
-        NOTES["Voice note history: audio, transcript, draft"]
-        DB[("Database: users, products, shops, orders, ledger, notes")]
-    end
+    DB[("6 · Database: products, shops, orders, khata ledger, voice notes with agent traces")]
 
+    UI --> VAL
     VAL -->|voice note| GUARD
-    UI -->|typed order| GUARD
-    UI -->|sample| SAMPLE
+    UI -->|typed message| GUARD
+    GUARD -->|audio| L
+    GUARD -->|text| R
+    L --> R
+    R -->|order| E
+    E --> C
+    C --> V
+    V --> K
+    R -->|payment or balance| K
+    R -.->|AI busy| FB
+    E -.->|AI busy| FB
+    FB -.-> C
 
-    GUARD -->|audio| ASR1
-    ASR1 -.->|rate limited| ASR2
-    ASR1 --> SIL
-    ASR2 --> SIL
-    SIL -->|no| RETRY
-    SIL -->|yes| LLM1
-    GUARD -->|text| LLM1
-    LLM1 -.->|rate limited| LLM2
-    LLM2 -.->|all AI busy| OFF
-
-    LLM1 --> MATCH
-    LLM2 --> MATCH
-    OFF --> MATCH
-    SAMPLE --> CONF
-    MATCH --> CONF
-    CONF -->|no| REVIEW
-    CONF -->|yes| QUICK
-    REVIEW -->|corrected| ORDER
-    QUICK --> ORDER
-
-    ORDER --> LEDGER
+    K -->|order| REVIEW
+    K -->|payment| PAY
+    K -->|balance| BAL
+    REVIEW -->|confirm| ORDER
     ORDER --> REPLY
-    ORDER --> SPOKEN
-    SPOKEN --> TTS
+    PAY --> REPLY
+    BAL --> REPLY
+    REPLY --> VOICE
     REPLY --> SHOP
-    TTS --> SHOP
-
-    MATCH --> NOTES
-    NOTES --> DB
+    VOICE --> SHOP
     ORDER --> DB
-    LEDGER --> DB
+    PAY --> DB
 
     classDef core fill:#e9eef6,stroke:#1d3557,color:#0f1b2d
-    classDef ai fill:#fdf0e5,stroke:#e07a2f,color:#0f1b2d
+    classDef agent fill:#fdf0e5,stroke:#e07a2f,color:#0f1b2d
     classDef fallback fill:#f1f4f9,stroke:#66738a,stroke-dasharray:5 4,color:#0f1b2d
     classDef human fill:#fff4e2,stroke:#a8570a,color:#0f1b2d
     classDef done fill:#e8f6ed,stroke:#17803d,color:#0f1b2d
     classDef store fill:#ffffff,stroke:#66738a,color:#0f1b2d
 
-    class LAND,LOGIN,UI,VAL,GUARD,MATCH,ORDER,LEDGER,REPLY,SPOKEN core
-    class ASR1,LLM1,TTS ai
-    class ASR2,LLM2,OFF,SAMPLE,RETRY fallback
-    class SIL,CONF,REVIEW,QUICK human
+    class UI,VAL,GUARD,ORDER core
+    class L,R,E,C,V,K,REPLY,VOICE agent
+    class FB fallback
+    class REVIEW,PAY,BAL human
     class SHOP done
-    class NOTES,DB store
+    class DB store
 
     style CLIENT fill:#f8fafc,stroke:#d3dbe7
     style API fill:#f8fafc,stroke:#d3dbe7
-    style AI fill:#fffaf5,stroke:#f2c9a4
-    style LOGIC fill:#f8fafc,stroke:#d3dbe7
+    style AGENTS fill:#fffaf5,stroke:#f2c9a4
+    style HUMAN fill:#fffcf5,stroke:#f3d9a8
     style OUT fill:#f6fbf8,stroke:#bfe3cb
-    style STORE fill:#f8fafc,stroke:#d3dbe7
