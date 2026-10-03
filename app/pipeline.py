@@ -3,6 +3,8 @@
 from app import ai
 from app.db import get_products, get_shops
 from app.parser import match_product, offline_parse
+from app.seed import URDU_PRODUCT_NAMES, URDU_SHOP_NAMES
+from app.urdu import integer_words, quantity_words, rupees_words
 from rapidfuzz import fuzz, process
 
 REVIEW_THRESHOLD = 0.75
@@ -111,40 +113,57 @@ def format_pkr(amount: float) -> str:
 
 URDU_UNITS = {"carton": "کارٹن", "tin": "ٹین", "pack": "پیکٹ", "bag": "بیگ", "bori": "بوری", "kg": "کلو", "bottle": "بوتل"}
 
+# Right-to-left mark: keeps an English product or shop name from dragging
+# neighbouring numbers and punctuation to the wrong side of an Urdu line.
+RLM = "‏"
+
 
 def spoken_reply(order_id: int, shop_name: str, lines: list[dict], total: int,
                  payment: str, balance: int) -> str:
-    """The same confirmation, phrased to be read aloud (no symbols or bullets)."""
-    items = "، ".join(
-        f"{l['quantity']} {URDU_UNITS.get(l['unit'], l['unit'])} {l['name']}" for l in lines
+    """The confirmation phrased to be read aloud: Urdu script only.
+
+    Every product and shop name is in Urdu and every number is spelled out in
+    words, so the voice has nothing to guess (no "Rs", commas, digits or
+    English names, which TTS voices misread or improvise around).
+    """
+    shop = URDU_SHOP_NAMES.get(shop_name, shop_name)
+    items = "۔ ".join(
+        f"{quantity_words(l['quantity'])} {URDU_UNITS.get(l['unit'], l['unit'])} "
+        f"{URDU_PRODUCT_NAMES.get(l['sku'], l['name'])}، {rupees_words(l['line_total'])}"
+        for l in lines
     )
     if payment == "credit":
-        pay = f"یہ رقم آپ کے کھاتے میں لکھ دی گئی ہے، اور کل بقایا {round(balance):,} روپے ہے۔"
+        pay = f"یہ رقم آپ کے کھاتے میں لکھ دی گئی ہے۔ آپ کا کل بقایا {rupees_words(balance)} ہے۔"
     elif payment == "cash":
         pay = "ادائیگی ڈیلیوری پر نقد ہو گی۔"
     else:
         pay = "براہِ کرم بتا دیں کہ ادائیگی نقد ہو گی یا کھاتے میں۔"
     return (
-        f"السلام علیکم {shop_name}۔ آپ کا آرڈر نمبر {order_id} کنفرم ہو گیا ہے۔ "
-        f"{items}۔ کل رقم {round(total):,} روپے۔ {pay} شکریہ۔"
+        f"السلام علیکم، {shop}۔ آپ کا آرڈر نمبر {integer_words(order_id)} کنفرم ہو گیا ہے۔ "
+        f"{items}۔ کل رقم {rupees_words(total)}۔ {pay} شکریہ۔"
     )
 
 
 def whatsapp_reply(order_id: int, shop_name: str, lines: list[dict], total: int,
                    payment: str, balance: int, distributor: str) -> str:
-    """Urdu confirmation the order-taker can paste into WhatsApp."""
+    """Urdu confirmation the order-taker can paste into WhatsApp.
+
+    Each line starts and ends with Urdu (unit word, "روپے") so it reads
+    correctly right-to-left; English product names stay in the middle.
+    """
     items = "\n".join(
-        f"• {l['quantity']} {l['unit']} {l['name']} — {format_pkr(l['line_total'])}" for l in lines
+        f"• {l['quantity']} {URDU_UNITS.get(l['unit'], l['unit'])} {l['name']}{RLM} — {l['line_total']:,} روپے"
+        for l in lines
     )
     if payment == "credit":
-        pay = f"یہ رقم آپ کے کھاتے میں لکھ دی گئی ہے۔ کل بقایا: {format_pkr(balance)}"
+        pay = f"یہ رقم آپ کے کھاتے میں لکھ دی گئی ہے۔ کل بقایا: {round(balance):,} روپے"
     elif payment == "cash":
-        pay = "ادائیگی: نقد (ڈیلیوری پر)"
+        pay = "ادائیگی: ڈیلیوری پر نقد"
     else:
         pay = "ادائیگی کا طریقہ بتا دیں: نقد یا کھاتہ؟"
     return (
-        f"السلام علیکم {shop_name}!\n"
-        f"آپ کا آرڈر #{order_id} کنفرم ہو گیا ہے:\n{items}\n"
-        f"کل رقم: {format_pkr(total)}\n{pay}\n"
-        f"شکریہ — {distributor}"
+        f"السلام علیکم، {shop_name}{RLM}\n"
+        f"آپ کا آرڈر نمبر {order_id} کنفرم ہو گیا ہے:\n{items}\n"
+        f"کل رقم: {round(total):,} روپے\n{pay}\n"
+        f"شکریہ، {distributor}{RLM}"
     )

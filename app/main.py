@@ -354,14 +354,27 @@ def order_speech(order_id: int, user: dict = Depends(current_user)):
     """The Urdu confirmation read aloud by ElevenLabs. Cached per order."""
     if not ai.tts_enabled():
         raise HTTPException(501, "Urdu voice needs an ElevenLabs API key (ELEVENLABS_API_KEY).")
-    cached = AUDIO_DIR / f"reply-{order_id}.mp3"
-    if not cached.exists():
-        with connect() as conn:
-            row = conn.execute("SELECT spoken FROM orders WHERE id = ?", (order_id,)).fetchone()
-        if not row or not row["spoken"]:
+    with connect() as conn:
+        order = conn.execute(
+            "SELECT o.*, s.name AS shop FROM orders o JOIN shops s ON s.id = o.shop_id WHERE o.id = ?", (order_id,)
+        ).fetchone()
+        if not order:
             raise HTTPException(404, "Order not found.")
+        # Balance as it stood right after this order, not today's balance.
+        entry = conn.execute("SELECT id FROM ledger WHERE order_id = ?", (order_id,)).fetchone()
+        balance = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM ledger WHERE shop_id = ? AND id <= ?",
+            (order["shop_id"], entry["id"] if entry else 0),
+        ).fetchone()[0]
+    # Rebuilt from the stored order every time, so it always matches the order's
+    # real items and amounts; the audio is cached per exact text.
+    spoken = pipeline.spoken_reply(order_id, order["shop"], json.loads(order["lines_json"]),
+                                   order["total"], order["payment"], balance)
+    digest = hashlib.sha256(spoken.encode()).hexdigest()[:16]
+    cached = AUDIO_DIR / f"reply-{order_id}-{digest}.mp3"
+    if not cached.exists():
         try:
-            cached.write_bytes(ai.speak(row["spoken"]))
+            cached.write_bytes(ai.speak(spoken))
         except ai.AllProvidersFailed as exc:
             raise HTTPException(503, f"The voice service is unavailable right now ({exc}).")
     return FileResponse(cached, media_type="audio/mpeg")

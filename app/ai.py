@@ -170,12 +170,17 @@ def speak(text: str) -> bytes:
     errors = []
     for model in _models(os.environ.get("ELEVENLABS_MODELS", "eleven_v3,eleven_multilingual_v2")):
         name = f"elevenlabs:{model}"
+        body = {"text": text, "model_id": model}
+        if model == "eleven_v3":
+            # Pin the language and use the most stable setting: v3 is otherwise
+            # expressive enough to paraphrase, and an order must be read verbatim.
+            body.update({"language_code": "ur", "voice_settings": {"stability": 1.0}})
         try:
             resp = httpx.post(
                 f"https://api.elevenlabs.io/v1/text-to-speech/{voice}",
                 params={"output_format": "mp3_44100_128"},
                 headers={"xi-api-key": key, "Accept": "audio/mpeg"},
-                json={"text": text, "model_id": model},
+                json=body,
                 timeout=TIMEOUT,
             )
             resp.raise_for_status()
