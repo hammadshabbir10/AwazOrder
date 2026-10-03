@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 *.db
 .env
+
+# Private notes (application drafts), kept local only
+docs/form-answers.md
