@@ -973,15 +973,81 @@ async function openLedger(shopId) {
   };
 }
 
+const CATALOGUE_GROUPS = [
+  {
+    id: "pantry",
+    label: "Pantry & spices",
+    image: "/static/images/catalogue-pantry.webp",
+    skus: ["SHAN-BIRYANI", "SHAN-PULAO", "SHAN-KARAHI", "SHAN-NIHARI", "NATIONAL-BIRYANI", "BASMATI-5KG", "SELLA-25KG", "SUGAR-50KG", "ATTA-20KG", "DAAL-CHANA", "DAAL-MASOOR", "SALT-800G", "RED-CHILLI", "HALDI"],
+  },
+  {
+    id: "oils-dairy",
+    label: "Oils, tea & dairy",
+    image: "/static/images/catalogue-oils-dairy.webp",
+    skus: ["DALDA-TIN", "DALDA-OIL", "SUFI-OIL", "MEZAN-GHEE", "TAPAL-DANEDAR", "LIPTON-YL", "VITAL-TEA", "MILKPAK-1L", "OLPERS-1L", "TARANG-1L"],
+  },
+  {
+    id: "drinks-snacks",
+    label: "Drinks & snacks",
+    image: "/static/images/catalogue-drinks-snacks.webp",
+    skus: ["PEPSI-1.5L", "COKE-1.5L", "SPRITE-1.5L", "WATER-1.5L", "LU-PRINCE", "LU-CANDI", "LU-TUC", "KOLSON-SLANTY", "KNORR-NOODLES"],
+  },
+  {
+    id: "home-care",
+    label: "Home & personal care",
+    image: "/static/images/catalogue-home-care.webp",
+    skus: ["SURF-EXCEL", "ARIEL", "LIFEBUOY", "LUX", "SAFEGUARD", "SUNSILK", "COLGATE"],
+  },
+];
+let activeCatalogueCategory = "all";
+
+function catalogueGroup(product) {
+  return CATALOGUE_GROUPS.find((group) => group.skus.includes(product.sku)) || CATALOGUE_GROUPS[0];
+}
+
 function renderCatalogue() {
   const q = $("cat-search").value.trim().toLowerCase();
-  const items = state.products.filter((p) => !q || p.name.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q)));
-  $("catalogue").innerHTML = items.length ? items.map((p) => `
-    <div class="cat-item"><strong>${esc(p.name)}</strong>
-      <span class="price">${pkr(p.price)} <small>/ ${esc(p.unit)}</small></span>
-      <small dir="auto">${esc(p.aliases.join(" · "))}</small></div>`).join("") : `<div class="empty">No products match “${esc(q)}”.</div>`;
+  const matchesSearch = state.products.filter((p) => !q || p.name.toLowerCase().includes(q)
+    || p.sku.toLowerCase().includes(q) || p.aliases.some((a) => a.toLowerCase().includes(q)));
+  const items = matchesSearch.filter((p) => activeCatalogueCategory === "all" || catalogueGroup(p).id === activeCatalogueCategory);
+  $("cat-results").textContent = `${items.length} ${items.length === 1 ? "product" : "products"} shown`;
+  $("catalogue").innerHTML = items.length ? items.map((p) => {
+    const group = catalogueGroup(p);
+    const aliases = p.aliases.slice(0, 3);
+    const extraAliases = p.aliases.length - aliases.length;
+    return `<article class="cat-item">
+      <div class="cat-media">
+        <img src="${group.image}" width="640" height="640" alt="" loading="lazy" decoding="async" />
+        <span class="cat-category">${esc(group.label)}</span>
+        <span class="cat-ai-badge"><i></i>AI match-ready</span>
+      </div>
+      <div class="cat-body">
+        <div class="cat-product-head">
+          <h3>${esc(p.name)}</h3>
+          <span class="cat-sku">${esc(p.sku)}</span>
+        </div>
+        <div class="cat-price"><strong>${pkr(p.price)}</strong><span>per ${esc(p.unit)}</span></div>
+        <div class="cat-aliases">
+          <span class="alias-label">AI also hears</span>
+          <div>${aliases.map((alias) => `<span dir="auto">${esc(alias)}</span>`).join("")}${extraAliases > 0 ? `<span>+${extraAliases}</span>` : ""}</div>
+        </div>
+      </div>
+    </article>`;
+  }).join("") : `<div class="empty cat-empty">No products match “${esc(q || activeCatalogueCategory)}”. Try another name or category.</div>`;
 }
+
 $("cat-search").addEventListener("input", renderCatalogue);
+$("cat-filters").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-category]");
+  if (!button) return;
+  activeCatalogueCategory = button.dataset.category;
+  document.querySelectorAll("#cat-filters button").forEach((item) => {
+    const active = item === button;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-pressed", String(active));
+  });
+  renderCatalogue();
+});
 
 /* ================================================================ go */
 

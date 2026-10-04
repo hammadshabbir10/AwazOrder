@@ -294,10 +294,29 @@
 
     <!-- ============================== Catalogue -->
     <section id="tab-catalogue" class="hidden">
-      <div class="card">
-        <div class="card-head">
-          <div><h2>Catalogue</h2><p>Products and the Urdu / Roman Urdu names the AI matches. Demo prices.</p></div>
-          <input class="search" id="cat-search" type="search" placeholder="Search products or aliases…" />
+      <div class="card catalogue-card">
+        <div class="catalogue-head">
+          <div>
+            <span class="eyebrow">AI-ready product library</span>
+            <h2>Catalogue</h2>
+            <p>See every product, its demo price, and the Urdu or Roman Urdu names the AI can match.</p>
+          </div>
+          <label class="cat-search" for="cat-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <span class="sr-only">Search catalogue</span>
+            <input id="cat-search" type="search" placeholder="Search products or names the AI hears…" autocomplete="off" />
+          </label>
+        </div>
+        <div class="cat-filters" id="cat-filters" role="toolbar" aria-label="Filter catalogue by category">
+          <button class="active" type="button" data-category="all" aria-pressed="true">All products</button>
+          <button type="button" data-category="pantry" aria-pressed="false">Pantry &amp; spices</button>
+          <button type="button" data-category="oils-dairy" aria-pressed="false">Oils, tea &amp; dairy</button>
+          <button type="button" data-category="drinks-snacks" aria-pressed="false">Drinks &amp; snacks</button>
+          <button type="button" data-category="home-care" aria-pressed="false">Home &amp; personal care</button>
+        </div>
+        <div class="cat-meta">
+          <span id="cat-results" aria-live="polite"></span>
+          <span class="ai-ready"><i></i>Aliases are ready for AI matching</span>
         </div>
         <div class="cat-grid" id="catalogue"></div>
       </div>
