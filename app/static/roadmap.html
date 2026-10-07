@@ -144,36 +144,146 @@
     .roadmap-card .card-icon.icon-portal { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0d9488; }
     .roadmap-card .card-icon.icon-monitor { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; }
 
-    /* ---------------------------------------------------------------- Tech stack section */
+    /* ---------------------------------------------------------------- Tech stack section — PREMIUM DARK */
     .tech-section {
-      padding: 80px 0;
-      background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      padding: 100px 0 120px;
+      background: linear-gradient(160deg, #050c1a 0%, #0d1730 40%, #080d1e 70%, #0a1020 100%);
+      position: relative; overflow: hidden;
     }
-    .tech-section .section-head { text-align: center; margin-bottom: 48px; }
-    .tech-section .section-head .eyebrow { color: var(--primary); background: var(--primary-bg); border: 1px solid rgba(29,53,87,0.12); }
-    .tech-section .section-head h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.5rem, 3vw, 2rem); margin-top: 16px; }
+    .tech-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 700px 400px at 15% 30%, rgba(99,102,241,0.12) 0%, transparent 65%),
+        radial-gradient(ellipse 500px 300px at 80% 60%, rgba(59,130,246,0.10) 0%, transparent 65%),
+        radial-gradient(ellipse 400px 400px at 50% 90%, rgba(139,92,246,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    /* animated star dots */
+    .tech-section .stars {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        radial-gradient(1px 1px at 20% 15%, rgba(255,255,255,0.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 75% 22%, rgba(255,255,255,0.20) 0%, transparent 100%),
+        radial-gradient(1px 1px at 45% 55%, rgba(255,255,255,0.18) 0%, transparent 100%),
+        radial-gradient(1px 1px at 65% 80%, rgba(255,255,255,0.22) 0%, transparent 100%),
+        radial-gradient(1px 1px at 10% 70%, rgba(255,255,255,0.15) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 88% 45%, rgba(160,160,255,0.3) 0%, transparent 100%);
+    }
 
-    .tech-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 16px; max-width: 900px; margin: 0 auto;
+    .tech-section .section-head { text-align: center; margin-bottom: 64px; position: relative; z-index: 1; }
+    .tech-section .section-head .eyebrow {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 16px; border-radius: 20px;
+      background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
+      margin-bottom: 20px;
     }
-    .tech-item {
-      display: flex; align-items: center; gap: 14px;
-      padding: 20px; border-radius: 16px;
-      background: var(--bg); border: 1px solid var(--line);
-      transition: transform .25s, box-shadow .25s;
+    .tech-section .section-head h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(1.7rem, 3.5vw, 2.6rem); font-weight: 800;
+      color: #fff; line-height: 1.2;
     }
-    .tech-item:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -8px rgba(0,0,0,0.06); }
-    .tech-item .tech-icon {
-      width: 42px; height: 42px; border-radius: 12px;
+    .tech-section .section-head h2 span {
+      background: linear-gradient(135deg, #818cf8, #60a5fa, #34d399);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .tech-section .section-head p { color: rgba(255,255,255,0.5); margin-top: 12px; font-size: 15px; }
+
+    /* Pipeline label rows */
+    .pipeline-flow {
+      max-width: 1060px; margin: 0 auto 56px; position: relative; z-index: 1;
+      display: grid; grid-template-columns: 1fr 48px 1fr 48px 1fr;
+      align-items: start; gap: 0;
+    }
+    .pipeline-group { display: flex; flex-direction: column; gap: 12px; }
+    .pipeline-group-label {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      padding: 6px 12px; border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    .pgl-voice { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .pgl-ai    { background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+    .pgl-infra { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+    .pipeline-arrow {
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; font-weight: 800;
-      background: linear-gradient(135deg, var(--ti-from, #eef2ff), var(--ti-to, #e0e7ff));
-      color: var(--ti-color, #4f46e5);
+      padding-top: 46px; /* align with cards */
+      color: rgba(255,255,255,0.2); font-size: 22px;
+    }
+
+    /* Individual tech cards */
+    .tech-item {
+      position: relative; overflow: hidden;
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 20px; border-radius: 16px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+      transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s, border-color .3s, background .3s;
+      cursor: default;
+    }
+    .tech-item::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--ti-glow, rgba(99,102,241,0.0)) 0%, transparent 60%);
+      opacity: 0; transition: opacity .35s;
+      border-radius: 16px;
+    }
+    .tech-item:hover {
+      transform: translateY(-4px) scale(1.02);
+      border-color: rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.07);
+      box-shadow: 0 16px 40px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    }
+    .tech-item:hover::before { opacity: 1; }
+    .tech-item .tech-icon {
+      flex-shrink: 0;
+      width: 46px; height: 46px; border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--ti-from, rgba(99,102,241,0.3)), var(--ti-to, rgba(139,92,246,0.3)));
+      color: var(--ti-color, #a5b4fc);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 20px var(--ti-glow, rgba(99,102,241,0.2));
     }
     .tech-item .tech-info { min-width: 0; }
-    .tech-item .tech-name { font-size: 14px; font-weight: 700; color: var(--ink); }
-    .tech-item .tech-role { font-size: 12px; color: var(--muted); }
+    .tech-item .tech-name { font-size: 13.5px; font-weight: 700; color: rgba(255,255,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tech-item .tech-role { font-size: 11.5px; color: rgba(255,255,255,0.42); margin-top: 2px; }
+    /* live badge on whisper */
+    .tech-item .live-dot {
+      position: absolute; top: 10px; right: 10px;
+      width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* Metric bar */
+    .tech-metrics {
+      max-width: 1060px; margin: 56px auto 0;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+      position: relative; z-index: 1;
+    }
+    .tech-metric {
+      padding: 24px 20px; border-radius: 18px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      text-align: center; backdrop-filter: blur(8px);
+      transition: transform .25s, border-color .25s;
+    }
+    .tech-metric:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.14); }
+    .tech-metric .metric-val {
+      display: block; font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 2rem; font-weight: 800;
+      background: linear-gradient(135deg, #818cf8, #60a5fa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1;
+    }
+    .tech-metric .metric-label { display: block; font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 8px; font-weight: 500; }
+    @media (max-width: 860px) {
+      .pipeline-flow { grid-template-columns: 1fr; }
+      .pipeline-arrow { display: none; }
+      .tech-metrics { grid-template-columns: repeat(2,1fr); }
+    }
 
     /* ---------------------------------------------------------------- CTA */
     .roadmap-cta {
@@ -363,45 +473,106 @@
       </div>
     </section>
 
-    <!-- Current Tech Stack -->
+    <!-- AI & ML Stack - Premium Dark Pipeline -->
     <section class="tech-section">
-      <div class="wrap">
+      <div class="stars"></div>
+      <div class="wrap" style="position:relative;z-index:1">
         <div class="section-head">
-          <span class="eyebrow">⚡ Powering Awaz Order today</span>
-          <h2>Our AI & ML Stack</h2>
+          <span class="eyebrow">&#9889; Live in production</span>
+          <h2>Our <span>AI &amp; ML Stack</span></h2>
+          <p>8 technologies working in concert &mdash; from raw voice note to Urdu confirmation in under 4 seconds.</p>
         </div>
-        <div class="tech-grid">
-          <div class="tech-item" style="--ti-from:#fef3c7;--ti-to:#fde68a;--ti-color:#92400e;">
-            <div class="tech-icon">W</div>
-            <div class="tech-info"><div class="tech-name">Whisper large-v3</div><div class="tech-role">Speech-to-text (Urdu, Punjabi)</div></div>
+        <div class="pipeline-flow">
+          <div class="pipeline-group">
+            <span class="pipeline-group-label pgl-voice">&#127899;&#65039; Voice layer</span>
+            <div class="tech-item" style="--ti-from:rgba(251,191,36,0.25);--ti-to:rgba(245,158,11,0.15);--ti-color:#fbbf24;--ti-glow:rgba(251,191,36,0.15);">
+              <div class="tech-icon">W</div>
+              <div class="tech-info">
+                <div class="tech-name">Whisper large-v3</div>
+                <div class="tech-role">ASR &middot; Urdu &amp; Punjabi</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
+            <div class="tech-item" style="--ti-from:rgba(251,113,133,0.25);--ti-to:rgba(244,63,94,0.15);--ti-color:#fb7185;--ti-glow:rgba(244,63,94,0.15);">
+              <div class="tech-icon">EL</div>
+              <div class="tech-info">
+                <div class="tech-name">ElevenLabs v3</div>
+                <div class="tech-role">Urdu TTS reply</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
           </div>
-          <div class="tech-item" style="--ti-from:#ede9fe;--ti-to:#ddd6fe;--ti-color:#6d28d9;">
-            <div class="tech-icon">Q</div>
-            <div class="tech-info"><div class="tech-name">Qwen 3.8 · 27B</div><div class="tech-role">Order extraction agent</div></div>
+          <div class="pipeline-arrow">&#8594;</div>
+          <div class="pipeline-group">
+            <span class="pipeline-group-label pgl-ai">&#129302; AI models</span>
+            <div class="tech-item" style="--ti-from:rgba(139,92,246,0.25);--ti-to:rgba(99,102,241,0.15);--ti-color:#a78bfa;--ti-glow:rgba(139,92,246,0.18);">
+              <div class="tech-icon">Q</div>
+              <div class="tech-info">
+                <div class="tech-name">Qwen 3.8 &middot; 27B</div>
+                <div class="tech-role">Primary extraction agent</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
+            <div class="tech-item" style="--ti-from:rgba(59,130,246,0.25);--ti-to:rgba(37,99,235,0.15);--ti-color:#60a5fa;--ti-glow:rgba(59,130,246,0.15);">
+              <div class="tech-icon">G</div>
+              <div class="tech-info">
+                <div class="tech-name">gpt-oss-120B</div>
+                <div class="tech-role">Fallback model</div>
+              </div>
+            </div>
+            <div class="tech-item" style="--ti-from:rgba(52,211,153,0.2);--ti-to:rgba(16,185,129,0.12);--ti-color:#34d399;--ti-glow:rgba(52,211,153,0.12);">
+              <div class="tech-icon">R</div>
+              <div class="tech-info">
+                <div class="tech-name">gpt-oss-20B</div>
+                <div class="tech-role">Router &amp; verifier</div>
+              </div>
+            </div>
+            <div class="tech-item" style="--ti-from:rgba(236,72,153,0.2);--ti-to:rgba(219,39,119,0.12);--ti-color:#f472b6;--ti-glow:rgba(236,72,153,0.12);">
+              <div class="tech-icon">RF</div>
+              <div class="tech-info">
+                <div class="tech-name">RapidFuzz</div>
+                <div class="tech-role">Catalogue matching</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
           </div>
-          <div class="tech-item" style="--ti-from:#e0f2fe;--ti-to:#bae6fd;--ti-color:#0369a1;">
-            <div class="tech-icon">G</div>
-            <div class="tech-info"><div class="tech-name">gpt-oss-120B</div><div class="tech-role">Fallback extraction model</div></div>
+          <div class="pipeline-arrow">&#8594;</div>
+          <div class="pipeline-group">
+            <span class="pipeline-group-label pgl-infra">&#9881;&#65039; Infrastructure</span>
+            <div class="tech-item" style="--ti-from:rgba(52,211,153,0.25);--ti-to:rgba(16,185,129,0.15);--ti-color:#34d399;--ti-glow:rgba(52,211,153,0.15);">
+              <div class="tech-icon">FA</div>
+              <div class="tech-info">
+                <div class="tech-name">FastAPI</div>
+                <div class="tech-role">Async backend</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
+            <div class="tech-item" style="--ti-from:rgba(99,102,241,0.25);--ti-to:rgba(79,70,229,0.15);--ti-color:#818cf8;--ti-glow:rgba(99,102,241,0.18);">
+              <div class="tech-icon">GQ</div>
+              <div class="tech-info">
+                <div class="tech-name">Groq Cloud</div>
+                <div class="tech-role">AI inference &middot; sub-1s</div>
+              </div>
+              <span class="live-dot"></span>
+            </div>
           </div>
-          <div class="tech-item" style="--ti-from:#ecfdf5;--ti-to:#d1fae5;--ti-color:#047857;">
-            <div class="tech-icon">R</div>
-            <div class="tech-info"><div class="tech-name">gpt-oss-20B</div><div class="tech-role">Router & verifier agents</div></div>
+        </div>
+        <div class="tech-metrics">
+          <div class="tech-metric">
+            <span class="metric-val">&lt;4s</span>
+            <span class="metric-label">End-to-end latency</span>
           </div>
-          <div class="tech-item" style="--ti-from:#fdf2f8;--ti-to:#fce7f3;--ti-color:#be185d;">
-            <div class="tech-icon">RF</div>
-            <div class="tech-info"><div class="tech-name">RapidFuzz</div><div class="tech-role">Catalogue matching</div></div>
+          <div class="tech-metric">
+            <span class="metric-val">8</span>
+            <span class="metric-label">Live AI services</span>
           </div>
-          <div class="tech-item" style="--ti-from:#fff7ed;--ti-to:#ffedd5;--ti-color:#c2410c;">
-            <div class="tech-icon">EL</div>
-            <div class="tech-info"><div class="tech-name">ElevenLabs v3</div><div class="tech-role">Urdu voice synthesis</div></div>
+          <div class="tech-metric">
+            <span class="metric-val">3</span>
+            <span class="metric-label">LLM models chained</span>
           </div>
-          <div class="tech-item" style="--ti-from:#f0fdf4;--ti-to:#dcfce7;--ti-color:#15803d;">
-            <div class="tech-icon">FA</div>
-            <div class="tech-info"><div class="tech-name">FastAPI</div><div class="tech-role">Backend framework</div></div>
-          </div>
-          <div class="tech-item" style="--ti-from:#eff6ff;--ti-to:#dbeafe;--ti-color:#1d4ed8;">
-            <div class="tech-icon">GQ</div>
-            <div class="tech-info"><div class="tech-name">Groq Cloud</div><div class="tech-role">AI inference provider</div></div>
+          <div class="tech-metric">
+            <span class="metric-val">2</span>
+            <span class="metric-label">Languages supported</span>
           </div>
         </div>
       </div>
