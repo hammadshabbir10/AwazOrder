@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roadmap — Awaz Order</title>
+  <meta name="description" content="See what's coming next for Awaz Order: RAG-powered search, WhatsApp API, agentic workflows, voice cloning, ML pipelines and more." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d3557'/%3E%3Cpath d='M9 13v6M13 9v14M17 11.5v9M21 14v4' stroke='white' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    /* ---------------------------------------------------------------- Roadmap page styles */
+    .roadmap-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 120px 0 80px;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f4e 30%, #0f1b2d 60%, #0d1a2b 100%);
+      color: #fff;
+      text-align: center;
+    }
+    .roadmap-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 600px 400px at 30% 20%, rgba(99,102,241,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 500px 350px at 70% 80%, rgba(59,130,246,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 300px 300px at 50% 50%, rgba(139,92,246,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    /* Animated floating orbs */
+    .roadmap-hero .orb {
+      position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.35; pointer-events: none;
+      animation: orb-float 8s ease-in-out infinite alternate;
+    }
+    .roadmap-hero .orb:nth-child(1) { width: 300px; height: 300px; background: #6366f1; top: -60px; left: 10%; animation-delay: 0s; }
+    .roadmap-hero .orb:nth-child(2) { width: 200px; height: 200px; background: #3b82f6; bottom: -40px; right: 15%; animation-delay: 2s; }
+    .roadmap-hero .orb:nth-child(3) { width: 250px; height: 250px; background: #8b5cf6; top: 30%; right: 5%; animation-delay: 4s; }
+    @keyframes orb-float {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, -20px) scale(1.15); }
+    }
+    .roadmap-hero .wrap { position: relative; z-index: 1; }
+    .roadmap-hero .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 20px;
+      background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3);
+      color: #a5b4fc; font-weight: 600; font-size: 13px; letter-spacing: 0.5px;
+      text-transform: uppercase; margin-bottom: 24px;
+    }
+    .roadmap-hero .eyebrow .pulse { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.4); } }
+    .roadmap-hero h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 800; line-height: 1.15; max-width: 700px; margin: 0 auto 20px;
+    }
+    .roadmap-hero h1 em { font-style: normal; background: linear-gradient(135deg, #818cf8, #60a5fa, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .roadmap-hero .lede { font-size: 1.15rem; color: rgba(255,255,255,0.7); max-width: 560px; margin: 0 auto; line-height: 1.6; }
+
+    /* ---------------------------------------------------------------- Version badge */
+    .version-strip {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+      margin-top: 36px;
+    }
+    .version-strip .v-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85);
+      backdrop-filter: blur(8px); transition: background .25s, border-color .25s;
+    }
+    .version-strip .v-badge:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+    .version-strip .v-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .v-live .dot { background: #22c55e; }
+    .v-next .dot { background: #f59e0b; }
+    .v-future .dot { background: #6366f1; }
+
+    /* ---------------------------------------------------------------- Feature grid */
+    .roadmap-section { padding: 80px 0; }
+    .roadmap-section .section-head { text-align: center; margin-bottom: 56px; }
+    .roadmap-section .section-head .eyebrow { color: var(--primary); background: var(--primary-bg); border: 1px solid rgba(29,53,87,0.12); }
+    .roadmap-section .section-head h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.5rem, 3vw, 2.2rem); margin-top: 16px; }
+    .roadmap-section .section-head p { color: var(--muted); max-width: 520px; margin: 12px auto 0; }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 24px; max-width: 1100px; margin: 0 auto;
+    }
+    .roadmap-card {
+      position: relative; overflow: hidden;
+      padding: 32px 28px; border-radius: 20px;
+      background: var(--bg); border: 1px solid var(--line);
+      transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s;
+    }
+    .roadmap-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px -12px rgba(0,0,0,0.08);
+    }
+    .roadmap-card .card-icon {
+      width: 52px; height: 52px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 20px;
+    }
+    .roadmap-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; color: var(--ink); }
+    .roadmap-card p { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+    .roadmap-card .tech-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .roadmap-card .tech-tag {
+      display: inline-block; padding: 4px 10px; border-radius: 6px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: 0.3px;
+      background: var(--surface); color: var(--muted); border: 1px solid var(--line);
+    }
+    .roadmap-card .status-badge {
+      position: absolute; top: 20px; right: 20px;
+      padding: 4px 12px; border-radius: 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .status-coming { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+    .status-planned { background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #5b21b6; }
+    .status-research { background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #075985; }
+
+    /* Card accent gradients */
+    .roadmap-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--card-accent, #6366f1), var(--card-accent-end, #3b82f6));
+      border-radius: 20px 20px 0 0;
+    }
+    .roadmap-card:nth-child(1) { --card-accent: #6366f1; --card-accent-end: #818cf8; }
+    .roadmap-card:nth-child(2) { --card-accent: #22c55e; --card-accent-end: #4ade80; }
+    .roadmap-card:nth-child(3) { --card-accent: #f59e0b; --card-accent-end: #fbbf24; }
+    .roadmap-card:nth-child(4) { --card-accent: #ec4899; --card-accent-end: #f472b6; }
+    .roadmap-card:nth-child(5) { --card-accent: #3b82f6; --card-accent-end: #60a5fa; }
+    .roadmap-card:nth-child(6) { --card-accent: #8b5cf6; --card-accent-end: #a78bfa; }
+    .roadmap-card:nth-child(7) { --card-accent: #14b8a6; --card-accent-end: #2dd4bf; }
+    .roadmap-card:nth-child(8) { --card-accent: #ef4444; --card-accent-end: #f87171; }
+
+    .roadmap-card .card-icon.icon-rag { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #4f46e5; }
+    .roadmap-card .card-icon.icon-whatsapp { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; }
+    .roadmap-card .card-icon.icon-agents { background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #d97706; }
+    .roadmap-card .card-icon.icon-voice { background: linear-gradient(135deg, #fdf2f8, #fce7f3); color: #db2777; }
+    .roadmap-card .card-icon.icon-pipeline { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; }
+    .roadmap-card .card-icon.icon-credit { background: linear-gradient(135deg, #f5f3ff, #ede9fe); color: #7c3aed; }
+    .roadmap-card .card-icon.icon-portal { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0d9488; }
+    .roadmap-card .card-icon.icon-monitor { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; }
+
+    /* ---------------------------------------------------------------- Tech stack section */
+    .tech-section {
+      padding: 80px 0;
+      background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    }
+    .tech-section .section-head { text-align: center; margin-bottom: 48px; }
+    .tech-section .section-head .eyebrow { color: var(--primary); background: var(--primary-bg); border: 1px solid rgba(29,53,87,0.12); }
+    .tech-section .section-head h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.5rem, 3vw, 2rem); margin-top: 16px; }
+
+    .tech-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px; max-width: 900px; margin: 0 auto;
+    }
+    .tech-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 20px; border-radius: 16px;
+      background: var(--bg); border: 1px solid var(--line);
+      transition: transform .25s, box-shadow .25s;
+    }
+    .tech-item:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -8px rgba(0,0,0,0.06); }
+    .tech-item .tech-icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800;
+      background: linear-gradient(135deg, var(--ti-from, #eef2ff), var(--ti-to, #e0e7ff));
+      color: var(--ti-color, #4f46e5);
+    }
+    .tech-item .tech-info { min-width: 0; }
+    .tech-item .tech-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .tech-item .tech-role { font-size: 12px; color: var(--muted); }
+
+    /* ---------------------------------------------------------------- CTA */
+    .roadmap-cta {
+      padding: 100px 0;
+      text-align: center;
+      background: linear-gradient(135deg, #0a0e27, #1a1f4e, #0f1b2d);
+      color: #fff;
+      position: relative; overflow: hidden;
+    }
+    .roadmap-cta::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 500px 350px at 50% 50%, rgba(99,102,241,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .roadmap-cta .wrap { position: relative; z-index: 1; }
+    .roadmap-cta h2 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem); font-weight: 800; margin-bottom: 16px;
+    }
+    .roadmap-cta p { color: rgba(255,255,255,0.65); max-width: 440px; margin: 0 auto 32px; line-height: 1.6; }
+    .roadmap-cta .btn { font-size: 16px; padding: 14px 32px; }
+
+    /* ---------------------------------------------------------------- Animations */
+    .roadmap-card, .tech-item { opacity: 0; transform: translateY(24px); }
+    .roadmap-card.visible, .tech-item.visible { opacity: 1; transform: translateY(0); transition: opacity .6s, transform .6s cubic-bezier(.22,1,.36,1); }
+
+    @media (max-width: 640px) {
+      .roadmap-hero { padding: 96px 20px 60px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .tech-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-nav" id="site-nav">
+    <div class="inner">
+      <a class="brand" href="/"><span class="logo"></span>Awaz Order</a>
+      <nav aria-label="Sections">
+        <a href="/#features">Features</a>
+        <a href="/#agents">Agents</a>
+        <a href="/roadmap" class="active">Roadmap</a>
+      </nav>
+      <a class="btn primary sm" href="/login">Sign in</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="roadmap-hero">
+      <div class="orb"></div><div class="orb"></div><div class="orb"></div>
+      <div class="wrap">
+        <span class="eyebrow"><span class="pulse"></span> What's coming next</span>
+        <h1>The future of <em>Awaz Order</em></h1>
+        <p class="lede">We're building the most intelligent voice-powered order platform for Pakistani trade. Here's what's on the horizon.</p>
+        <div class="version-strip">
+          <span class="v-badge v-live"><span class="dot"></span> v1.0 — Live now</span>
+          <span class="v-badge v-next"><span class="dot"></span> v2.0 — In progress</span>
+          <span class="v-badge v-future"><span class="dot"></span> v3.0 — Research</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coming Soon Features -->
+    <section class="roadmap-section">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">🚀 Coming Soon</span>
+          <h2>Next-generation AI features</h2>
+          <p>Each feature is designed to make voice-powered ordering faster, smarter, and more accurate for Pakistani distributors.</p>
+        </div>
+
+        <div class="feature-grid">
+
+          <!-- 1. RAG -->
+          <article class="roadmap-card">
+            <span class="status-badge status-coming">Coming Soon</span>
+            <div class="card-icon icon-rag">🔍</div>
+            <h3>RAG-Powered Catalogue Search</h3>
+            <p>Retrieval-Augmented Generation for intelligent product matching. Embed your entire catalogue as vectors — the AI finds the right product even from vague or partial descriptions in Urdu.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">LangChain</span>
+              <span class="tech-tag">ChromaDB</span>
+              <span class="tech-tag">OpenAI Embeddings</span>
+              <span class="tech-tag">Vector Search</span>
+            </div>
+          </article>
+
+          <!-- 2. WhatsApp API -->
+          <article class="roadmap-card">
+            <span class="status-badge status-coming">Coming Soon</span>
+            <div class="card-icon icon-whatsapp">💬</div>
+            <h3>WhatsApp Business API</h3>
+            <p>Receive voice notes directly from WhatsApp — no need to forward or upload. Send confirmations, receipts, and voice replies straight to the shopkeeper's chat.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">WhatsApp Cloud API</span>
+              <span class="tech-tag">Webhooks</span>
+              <span class="tech-tag">Media Download</span>
+              <span class="tech-tag">Message Templates</span>
+            </div>
+          </article>
+
+          <!-- 3. Agentic Workflows -->
+          <article class="roadmap-card">
+            <span class="status-badge status-coming">Coming Soon</span>
+            <div class="card-icon icon-agents">🤖</div>
+            <h3>Agentic Workflows & Orchestration</h3>
+            <p>Upgrade from sequential agents to a full agentic workflow graph. Agents negotiate, retry, and escalate autonomously using LangGraph with conditional branching and parallel execution.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">LangGraph</span>
+              <span class="tech-tag">LangChain Agents</span>
+              <span class="tech-tag">Tool Calling</span>
+              <span class="tech-tag">State Machines</span>
+            </div>
+          </article>
+
+          <!-- 4. ElevenLabs Voice Cloning -->
+          <article class="roadmap-card">
+            <span class="status-badge status-planned">Planned</span>
+            <div class="card-icon icon-voice">🎙️</div>
+            <h3>Custom Voice Cloning</h3>
+            <p>Clone the distributor's own voice with ElevenLabs voice cloning. Order confirmations sound like the real person, building trust and recognition with shopkeepers.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">ElevenLabs v3</span>
+              <span class="tech-tag">Voice Cloning API</span>
+              <span class="tech-tag">Urdu TTS</span>
+              <span class="tech-tag">Voice Library</span>
+            </div>
+          </article>
+
+          <!-- 5. Automated Reorder Pipelines -->
+          <article class="roadmap-card">
+            <span class="status-badge status-planned">Planned</span>
+            <div class="card-icon icon-pipeline">📊</div>
+            <h3>Automated Reorder Pipelines</h3>
+            <p>ML-driven demand forecasting from order history. Predict what each shop will order next week, auto-generate suggested orders, and alert when stock is running low.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">scikit-learn</span>
+              <span class="tech-tag">Time Series</span>
+              <span class="tech-tag">Forecasting</span>
+              <span class="tech-tag">Scheduled Pipelines</span>
+            </div>
+          </article>
+
+          <!-- 6. Credit Scoring -->
+          <article class="roadmap-card">
+            <span class="status-badge status-planned">Planned</span>
+            <div class="card-icon icon-credit">💳</div>
+            <h3>Smart Credit Scoring</h3>
+            <p>Machine learning credit risk model trained on khata ledger history. Predict which shops are likely to default and automatically adjust credit limits based on payment patterns.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">XGBoost</span>
+              <span class="tech-tag">Feature Engineering</span>
+              <span class="tech-tag">Risk Scoring</span>
+              <span class="tech-tag">Ledger Analytics</span>
+            </div>
+          </article>
+
+          <!-- 7. Website Ordering Portal -->
+          <article class="roadmap-card">
+            <span class="status-badge status-research">Research</span>
+            <div class="card-icon icon-portal">🛒</div>
+            <h3>Shopkeeper Ordering Portal</h3>
+            <p>A self-service web portal where shopkeepers browse the catalogue, place orders visually, track deliveries, and view their khata balance — alongside the voice channel.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">Next.js</span>
+              <span class="tech-tag">React</span>
+              <span class="tech-tag">PWA</span>
+              <span class="tech-tag">Mobile-first</span>
+            </div>
+          </article>
+
+          <!-- 8. Real-time Agent Monitoring -->
+          <article class="roadmap-card">
+            <span class="status-badge status-research">Research</span>
+            <div class="card-icon icon-monitor">📡</div>
+            <h3>Real-time Agent Dashboard</h3>
+            <p>Live monitoring of every agent in the pipeline: latency, success rates, fallback frequency, and model accuracy. Includes alerting and automatic model switching when performance degrades.</p>
+            <div class="tech-tags">
+              <span class="tech-tag">WebSockets</span>
+              <span class="tech-tag">Prometheus</span>
+              <span class="tech-tag">Grafana</span>
+              <span class="tech-tag">OpenTelemetry</span>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Current Tech Stack -->
+    <section class="tech-section">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">⚡ Powering Awaz Order today</span>
+          <h2>Our AI & ML Stack</h2>
+        </div>
+        <div class="tech-grid">
+          <div class="tech-item" style="--ti-from:#fef3c7;--ti-to:#fde68a;--ti-color:#92400e;">
+            <div class="tech-icon">W</div>
+            <div class="tech-info"><div class="tech-name">Whisper large-v3</div><div class="tech-role">Speech-to-text (Urdu, Punjabi)</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#ede9fe;--ti-to:#ddd6fe;--ti-color:#6d28d9;">
+            <div class="tech-icon">Q</div>
+            <div class="tech-info"><div class="tech-name">Qwen 3.8 · 27B</div><div class="tech-role">Order extraction agent</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#e0f2fe;--ti-to:#bae6fd;--ti-color:#0369a1;">
+            <div class="tech-icon">G</div>
+            <div class="tech-info"><div class="tech-name">gpt-oss-120B</div><div class="tech-role">Fallback extraction model</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#ecfdf5;--ti-to:#d1fae5;--ti-color:#047857;">
+            <div class="tech-icon">R</div>
+            <div class="tech-info"><div class="tech-name">gpt-oss-20B</div><div class="tech-role">Router & verifier agents</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#fdf2f8;--ti-to:#fce7f3;--ti-color:#be185d;">
+            <div class="tech-icon">RF</div>
+            <div class="tech-info"><div class="tech-name">RapidFuzz</div><div class="tech-role">Catalogue matching</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#fff7ed;--ti-to:#ffedd5;--ti-color:#c2410c;">
+            <div class="tech-icon">EL</div>
+            <div class="tech-info"><div class="tech-name">ElevenLabs v3</div><div class="tech-role">Urdu voice synthesis</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#f0fdf4;--ti-to:#dcfce7;--ti-color:#15803d;">
+            <div class="tech-icon">FA</div>
+            <div class="tech-info"><div class="tech-name">FastAPI</div><div class="tech-role">Backend framework</div></div>
+          </div>
+          <div class="tech-item" style="--ti-from:#eff6ff;--ti-to:#dbeafe;--ti-color:#1d4ed8;">
+            <div class="tech-icon">GQ</div>
+            <div class="tech-info"><div class="tech-name">Groq Cloud</div><div class="tech-role">AI inference provider</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="roadmap-cta">
+      <div class="wrap">
+        <h2>Want to see what's already working?</h2>
+        <p>Try the live demo now — record a voice note in Urdu or Punjabi and watch the AI pipeline process it in real time.</p>
+        <a class="btn primary lg" href="/login">Try the live demo →</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <span class="brand" style="font-size:15px"><span class="logo" style="width:24px;height:24px"></span>Awaz Order</span>
+      <span>Whisper · Qwen · gpt-oss · RapidFuzz · ElevenLabs · FastAPI</span>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll reveal animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((e, i) => {
+        if (e.isIntersecting) {
+          setTimeout(() => e.target.classList.add('visible'), i * 80);
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.roadmap-card, .tech-item').forEach(el => observer.observe(el));
+
+    // Sticky nav background
+    const nav = document.getElementById('site-nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 40);
+    });
+  </script>
+</body>
+</html>

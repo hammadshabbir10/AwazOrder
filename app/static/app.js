@@ -977,25 +977,25 @@ const CATALOGUE_GROUPS = [
   {
     id: "pantry",
     label: "Pantry & spices",
-    image: "/static/images/catalogue-pantry.webp",
+    image: "/static/images/stock-pantry.jpg",
     skus: ["SHAN-BIRYANI", "SHAN-PULAO", "SHAN-KARAHI", "SHAN-NIHARI", "NATIONAL-BIRYANI", "BASMATI-5KG", "SELLA-25KG", "SUGAR-50KG", "ATTA-20KG", "DAAL-CHANA", "DAAL-MASOOR", "SALT-800G", "RED-CHILLI", "HALDI"],
   },
   {
     id: "oils-dairy",
     label: "Oils, tea & dairy",
-    image: "/static/images/catalogue-oils-dairy.webp",
+    image: "/static/images/stock-oils-dairy.jpg",
     skus: ["DALDA-TIN", "DALDA-OIL", "SUFI-OIL", "MEZAN-GHEE", "TAPAL-DANEDAR", "LIPTON-YL", "VITAL-TEA", "MILKPAK-1L", "OLPERS-1L", "TARANG-1L"],
   },
   {
     id: "drinks-snacks",
     label: "Drinks & snacks",
-    image: "/static/images/catalogue-drinks-snacks.webp",
+    image: "/static/images/stock-drinks-snacks.jpg",
     skus: ["PEPSI-1.5L", "COKE-1.5L", "SPRITE-1.5L", "WATER-1.5L", "LU-PRINCE", "LU-CANDI", "LU-TUC", "KOLSON-SLANTY", "KNORR-NOODLES"],
   },
   {
     id: "home-care",
     label: "Home & personal care",
-    image: "/static/images/catalogue-home-care.webp",
+    image: "/static/images/stock-home-care.jpg",
     skus: ["SURF-EXCEL", "ARIEL", "LIFEBUOY", "LUX", "SAFEGUARD", "SUNSILK", "COLGATE"],
   },
 ];

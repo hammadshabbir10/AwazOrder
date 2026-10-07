@@ -788,3 +788,8 @@ def app_page(request: Request):
     if not user_from_request(request):
         return RedirectResponse("/login", status_code=303)
     return FileResponse(STATIC / "app.html")
+
+
+@app.get("/roadmap")
+def roadmap_page():
+    return FileResponse(STATIC / "roadmap.html")

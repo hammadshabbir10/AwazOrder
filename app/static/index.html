@@ -20,6 +20,7 @@
         <a href="#how">How it works</a>
         <a href="#agents">Agents</a>
         <a href="#architecture">Architecture</a>
+        <a href="/roadmap">Roadmap</a>
       </nav>
       <a class="btn primary sm" id="nav-cta" href="/login">Sign in</a>
     </div>
@@ -221,6 +222,41 @@
       </div>
     </section>
 
+    <!-- Powered-by tech strip -->
+    <section class="block" id="tech" style="background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="eyebrow">Powered by open-source AI</span>
+          <h2>The technology behind every order</h2>
+          <p>Open models, open tools — no vendor lock-in.</p>
+        </div>
+        <div class="tech-strip reveal">
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e">W</span><div><strong>Whisper large-v3</strong><small>Speech-to-text</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);color:#6d28d9">Q</span><div><strong>Qwen 3.8 · 27B</strong><small>Order extraction</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);color:#0369a1">G</span><div><strong>gpt-oss-120B</strong><small>Fallback model</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#047857">R</span><div><strong>gpt-oss-20B</strong><small>Router & verifier</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#fdf2f8,#fce7f3);color:#be185d">RF</span><div><strong>RapidFuzz</strong><small>Catalogue match</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);color:#c2410c">EL</span><div><strong>ElevenLabs v3</strong><small>Urdu voice</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#15803d">FA</span><div><strong>FastAPI</strong><small>Backend</small></div></div>
+          <div class="tech-chip"><span class="tech-chip-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1d4ed8">GQ</span><div><strong>Groq Cloud</strong><small>AI inference</small></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coming Soon CTA -->
+    <section class="block roadmap-cta-landing" style="padding-top:0">
+      <div class="wrap">
+        <div class="roadmap-cta-band reveal">
+          <div class="roadmap-cta-content">
+            <span class="eyebrow" style="margin-bottom:12px">🚀 Coming Soon</span>
+            <h2>RAG · Agentic Workflows · WhatsApp API · Voice Cloning</h2>
+            <p>We're building the next generation: RAG-powered search, LangGraph agent orchestration, WhatsApp Business API integration, custom voice cloning with ElevenLabs, ML pipelines for demand forecasting, and more.</p>
+          </div>
+          <a class="btn primary lg" href="/roadmap">See the full roadmap →</a>
+        </div>
+      </div>
+    </section>
+
     <!-- CTA -->
     <section class="block" style="padding-top:0">
       <div class="wrap">
@@ -238,7 +274,8 @@
   <footer class="site-foot">
     <div class="wrap">
       <span class="brand" style="font-size:15px"><span class="logo" style="width:24px;height:24px"></span>Awaz Order</span>
-      <span>MVP · Whisper · Qwen · gpt-oss · RapidFuzz · FastAPI</span>
+      <a href="/roadmap" style="color:inherit;text-decoration:none;opacity:0.7;font-size:13px">Roadmap</a>
+      <span>Whisper · Qwen · gpt-oss · RapidFuzz · ElevenLabs · FastAPI</span>
     </div>
   </footer>
 
